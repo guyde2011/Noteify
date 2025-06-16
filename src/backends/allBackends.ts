@@ -1,3 +1,5 @@
 import { DocumentationBackend } from "./interface";
 import { LocalFilesBackend } from "./localFiles";
-export const backends: Array<DocumentationBackend> = [new LocalFilesBackend()];
+export default function get(): Array<DocumentationBackend> {
+    return [new LocalFilesBackend()];
+}

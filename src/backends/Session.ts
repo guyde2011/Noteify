@@ -1,10 +1,11 @@
-import { backends as allBackends } from './allBackends';
+import getAllBackends from './allBackends';
 import { BackendStatusToString, DocumentationBackend, DocumentationBackendWorkspace } from './interface';
 import * as vscode from "vscode";
 
 export default class Session {
     openBackendWorkspaces: Array<DocumentationBackendWorkspace>;
     backendsWorkspacesOpen: Array<boolean>;
+    allBackends: Array<DocumentationBackend>;
 
     /**
      * The Session class holds state over all of the currently open backends, including information about each open file.
@@ -14,7 +15,8 @@ export default class Session {
         this.openBackendWorkspaces = [];
         // backends are all closed, initially
         this.backendsWorkspacesOpen = [];
-        for (let i = 0; i < allBackends.length; i++)
+        this.allBackends = getAllBackends();
+        for (let i = 0; i < this.allBackends.length; i++)
             this.backendsWorkspacesOpen.push(false);
     }
 
@@ -28,17 +30,17 @@ export default class Session {
             return;
         const workspaceUri = workspaceRawUri.toString();
 
-		// Some of the backends that weren't valid before might become valid now; for example, listening sockets that have been opened.
+        // Some of the backends that weren't valid before might become valid now; for example, listening sockets that have been opened.
         let tasks = [];
-		for (let i = 0; i < allBackends.length; i++) {
-            const backend = allBackends[i];
+        for (let i = 0; i < this.allBackends.length; i++) {
+            const backend = this.allBackends[i];
 
             // skip over already open backends
             if (this.backendsWorkspacesOpen[i])
                 continue;
 
             // try to initialize uninitialized backends
-			if (!backend.isInitialized) {
+            if (!backend.isInitialized) {
                 await backend.init();
                 if (!backend.isInitialized) {
                     continue;
@@ -54,7 +56,7 @@ export default class Session {
                 }
             });
             tasks.push(task);
-		}
+        }
     }
 
     dispose(): void {
@@ -63,7 +65,6 @@ export default class Session {
         }
         this.openBackendWorkspaces = [];
         this.backendsWorkspacesOpen = [];
-        for (let i = 0; i < allBackends.length; i++)
-            this.backendsWorkspacesOpen.push(false);
+        this.allBackends = [];
     }
 }
