@@ -1,5 +1,5 @@
 {
-  "name": "noteify",
+	"name": "noteify",
 	"displayName": "noteify",
 	"description": "",
 	"version": "0.0.1",
@@ -10,7 +10,7 @@
 		"Other"
 	],
 	"activationEvents": [
-        "onCommand:noteify.helloWorld"
+		"onCommand:noteify.helloWorld"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -34,6 +34,10 @@
 			{
 				"command": "noteify.addSymbolDoc",
 				"title": "Add Symbol Documentation"
+			},
+			{
+				"command": "noteify.saveNote",
+				"title": "Save Note"
 			}
 		],
 		"menus": {
@@ -41,19 +45,26 @@
 				{
 					"command": "noteify.deleteThread",
 					"group": "navigation",
-					"when": "commentController == comment-sample && !commentThreadIsEmpty"
+					"when": "commentController == noteify-comments && !commentThreadIsEmpty"
+				}
+			],
+			"comments/comment/context": [
+				{
+					"command": "noteify.saveNote",
+					"group": "inline",
+					"when": "commentController == noteify-comments"
 				}
 			],
 			"comments/comment/title": [
 				{
 					"command": "noteify.editNote",
 					"group": "group@1",
-					"when": "commentController == noteify-comment"
+					"when": "commentController == noteify-comments"
 				},
 				{
 					"command": "noteify.deleteNote",
 					"group": "group@2",
-					"when": "commentController == noteify-comment && comment == canDelete"
+					"when": "commentController == noteify-comments"
 				}
 			]
 		}

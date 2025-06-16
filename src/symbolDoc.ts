@@ -3,16 +3,27 @@ import { docManager, DocsManager as DocManager, DocSection, MarkdownSection } fr
 
 export type Symbol = string;
 
-var symbolDocId = 0;
+var linkedDocId = 0;
 
-export class SymbolDoc {
+export abstract class LinkedDoc {
     public readonly innerId: number;
+    constructor() {
+        this.innerId = linkedDocId++;
+    }
+}
+
+export class SymbolDoc extends LinkedDoc {
     constructor(
         public symbol: Symbol,
         public docs: DocSection,
         public uri: Uri,
+        private readonly manager: SymbolDocManager,
     ) {
-        this.innerId = symbolDocId++;
+        super();
+    }
+
+    sendUpdate(): void {
+        this.manager.updateDocs(this.uri);
     }
 };
 
@@ -25,14 +36,24 @@ export class SymbolDocManager {
         this.symbolDocs = new Map<Symbol, SymbolDoc[]>();
     }
 
+    private extractSymbolDocs(sections: DocSection[], uri: Uri): SymbolDoc[] {
+        return sections.filter((section) => isSymbolLike(section.section.title)).map((section) => {
+            return new SymbolDoc(
+                section.section.title.trim(),
+                section,
+                uri,
+                this
+            );
+        });
+    }
+
     private processDocs(sections: DocSection[], docUri: Uri): SymbolDoc[] {
         // TODO: prevent duplication processing of symbol docs
         let output = [];
-        for (const symbolDoc of extractSymbolDocs(sections, docUri)) {
+        for (const symbolDoc of this.extractSymbolDocs(sections, docUri)) {
             if (!this.symbolDocs.has(symbolDoc.symbol)) {
                 this.symbolDocs.set(symbolDoc.symbol, []);
             }
-            console.log(symbolDoc);
             let newDoc = true;
             for (const doc of this.symbolDocs.get(symbolDoc.symbol)!) {
                 if (doc.innerId === symbolDoc.innerId) {
@@ -79,7 +100,7 @@ export class SymbolDocManager {
 
     createSymbolDoc(symbol: Symbol, docUri: Uri): SymbolDoc {
         // TODO: figure the right hashCount
-        const emptySection = new MarkdownSection(symbol, 3, []);
+        const emptySection = new MarkdownSection(symbol, 3, [], this.docManager);
         this.docManager.appendSection(docUri, emptySection);
         const updatedDocs = this.updateDocs(docUri);
         return updatedDocs[updatedDocs.length - 1];
@@ -93,15 +114,6 @@ function isSymbolLike(text: string): boolean {
     return text.trim().search(new RegExp("[ \t{}\\\\'\"]")) === -1;
 }
 
-export function extractSymbolDocs(sections: DocSection[], uri: Uri): SymbolDoc[] {
-    return sections.filter((section) => isSymbolLike(section.section.title)).map((section) => {
-        return new SymbolDoc(
-            section.section.title.trim(),
-            section,
-            uri,
-        );
-    });
-}
 /**
  * Should extract a symbol from a symbol declaration string.
  * So for example:

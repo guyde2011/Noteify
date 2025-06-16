@@ -1,7 +1,9 @@
 # Docs
 
+
 ## Functions
+
 
 ### foo::bar
 
-Computes bar given a foo
+Computes bar with a foo, magically
