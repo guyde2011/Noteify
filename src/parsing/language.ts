@@ -5,9 +5,31 @@ import * as Cpp from "tree-sitter-cpp";
 // TODO: Better abstraction for this type
 export type Language = any;
 
+export class QuerySet {
+    public readonly queries: Query[];
+
+    constructor(public readonly language: Language, public readonly stringQueries: string[]) {
+        this.queries = stringQueries.map((query) => new Query(language, query));
+    }
+
+    checkCaptures(captures: { [key: string]: string }): Query[] {
+        return this.stringQueries.map((query) => {
+            let captureChecks = [];
+            for (const capture in captures) {
+                if (!query.includes(`@${capture}`)) {
+                    continue;
+                }
+                // TODO: Escape capture values (maybe unnecessary)
+                captureChecks.push(`(#eq? @${capture} "${captures[capture]}")`);
+            }
+            return new Query(this.language, `(${query}\n${captureChecks.join("\n")})`);
+        });
+    }
+}
+
 export class LangApi {
     private readonly parser: Parser;
-    public readonly symbolQueries: Query[];
+    public readonly symbolQueries: QuerySet;
 
     constructor(
         public readonly language: Language,
@@ -15,12 +37,13 @@ export class LangApi {
     ) {
         this.parser = new Parser();
         this.parser.setLanguage(language);
-        this.symbolQueries = symbolQueries.map((query) => new Query(language, query));
+        this.symbolQueries = new QuerySet(language, symbolQueries);
     }
 
     parse(contents: string): Tree {
         return this.parser.parse(contents);
     }
+
 }
 
 // TODO: move to files, and embed in compilation process

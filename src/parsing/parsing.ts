@@ -2,6 +2,7 @@ import { Query, SyntaxNode, Tree } from "tree-sitter";
 import Parser = require("tree-sitter");
 import { LangApi, Language, Languages } from "./language";
 import { Position, Range } from "vscode";
+import { readFile } from "../utils";
 
 export type SourceFile = string;
 
@@ -17,19 +18,30 @@ export class ParsedFile {
 export class FileParser {
     private loadedFiles: Map<SourceFile, ParsedFile> = new Map();
 
-    parseFile(file: SourceFile, contents: string): ParsedFile | undefined {
+    parseFile(file: SourceFile): Promise<ParsedFile> | undefined;
+    parseFile(file: SourceFile, contents: string): ParsedFile | undefined;
+
+    parseFile(file: SourceFile, contents?: string): Promise<ParsedFile> | ParsedFile | undefined {
+        // Select a language
+        const langApi = getApiForFile(file);
+        if (!langApi) {
+            return;
+        }
+
+        if (!contents) {
+            return readFile(file).then((contents) => this.parseLoadedFile(file, contents, langApi));
+        }
+
+        return this.parseLoadedFile(file, contents, langApi);
+    }
+
+    private parseLoadedFile(file: SourceFile, contents: string, langApi: LangApi) {
         // If it is already cached with the same contents, just return it.
         if (this.loadedFiles.has(file)) {
             const loaded = this.loadedFiles.get(file)!;
             if (loaded.contents === contents) {
                 return loaded;
             }
-        }
-
-        // Select a language
-        const langApi = getApiForFile(file);
-        if (!langApi) {
-            return;
         }
 
         // Get a tree

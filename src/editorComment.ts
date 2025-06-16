@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { LinkedDoc, SymbolDoc } from "./symbolDoc";
+import { searchLSPSymbol, searchTSSymbol } from "./parsing/symbol";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 var lastCommentId = 0;
@@ -112,14 +113,32 @@ export function initComments() {
 
 export async function makeComments(docs: SymbolDoc[]) {
     for (const doc of docs) {
-        const wsSymbols: vscode.SymbolInformation[] =
-            await vscode.commands.executeCommand("vscode.executeWorkspaceSymbolProvider", doc.symbol);
-        for (const wsSymbol of wsSymbols) {
+        const searchQuery = { name: doc.symbol };
+        let symbols = await searchLSPSymbol(searchQuery);
+        const tsSymbols = await searchTSSymbol(searchQuery);
+
+        // Makes sure we don't add symbols with ranges that already intersect a previously added symbol.
+        // TODO: maybe sort the symbols for faster implementation of this!
+        for (const symbol of tsSymbols)  {
+            let isUnique = true;
+            for (const existingSymbol of symbols) {
+                if (symbol.range.intersection(existingSymbol.range)) {
+                    // There's an intersection
+                    isUnique = false;
+                    break;
+                }
+            }
+            if (isUnique) {
+                symbols.push(symbol);
+            }
+        }
+
+        for (const symbol of symbols) {
             // Skip markdown files, otherwise you are pretty much unable to edit markdown
-            if (wsSymbol.location.uri.fsPath.endsWith(".md")) {
+            if (symbol.uri.fsPath.endsWith(".md")) {
                 continue;
             }
-            symbolCommentManager.insertComment(doc, wsSymbol.location);
+            symbolCommentManager.insertComment(doc, new vscode.Location(symbol.uri, symbol.range));
         }
     }
 }
