@@ -1,7 +1,7 @@
 import { Uri } from "vscode";
 import * as vscode from "vscode";
 import { readFile, writeFile } from "../utils";
-import { DocumentationBackend, BackendStatus, DocumentationBackendWorkspace, DocEvent, DocEventType } from "./interface";
+import { DocumentationBackend, BackendStatus, DocumentationBackendWorkspace, DocEvent, DocEventType, DocumentationBackendFile } from "./interface";
 
 
 export class LocalFilesBackend implements DocumentationBackend {
@@ -39,6 +39,10 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
     /**
      * Modifying markdown files outside of actions is currently unimplemented.
      */
+    async openFile(fileUri: string): Promise<LocalFilesBackendFile> {
+        return new LocalFilesBackendFile(this, fileUri);
+    }
+
     async *listen(): AsyncIterator<DocEvent> {
         yield {
             "type": DocEventType.Add,
@@ -46,6 +50,24 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
             "lineOrSymbol": 1,
             "markdown": "abc"
         };
+    }
+
+    dispose(): void {
+        // does nothing
+    }
+}
+
+export class LocalFilesBackendFile implements DocumentationBackendFile {
+    constructor(public parentWorkspace: LocalFilesBackendWorkspace, public fileUri: string) {}
+
+    setListener(e: (_: DocEvent) => void): void {
+        // There is only one event for now
+        e({
+            "type": DocEventType.Add,
+            "docId": 0,
+            "lineOrSymbol": 1,
+            "markdown": "abc"
+        });
     }
 
     async requestJumpTo(docId: number): Promise<BackendStatus> {
@@ -58,7 +80,7 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
         return BackendStatus.Unsupported;
     }
 
-    dispose(): void {
+    close(): void {
         // does nothing
     }
 }

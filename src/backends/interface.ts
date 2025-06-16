@@ -73,7 +73,33 @@ export interface DocumentationBackendWorkspace {
         }
     };
 
-    listen(): AsyncIterator<DocEvent>;
+    /**
+     * Starts bidirectional communication for events about documentation for a file URI.
+     * @param fileUri Based on a TextDocument's uri, converted toString.
+     */
+    openFile(fileUri: string): Promise<DocumentationBackendFile>;
+
+    /**
+     * Closes any outgoing connection to the backend. It must complete synchronously, because the workspace may be reopened immediately after calling dispose().
+     */
+    dispose(): void;
+}
+
+export interface DocumentationBackendFile {
+    /**
+     * Workspace from which this file was opened.
+     */
+    parentWorkspace: DocumentationBackendWorkspace;
+
+    /**
+     * The URI with which the backend file was opened.
+     */
+    fileUri: string;
+
+    /**
+     * A stream of documentation events is the main way for the documentation backend to send its updates as well as the initial contents to the frontend.
+     */
+    setListener(e: (_: DocEvent) => void): void;
 
     // When a request returns, it means that it was received by the backend.
     // As a design decision, the corresponding event for a similar change initiated by the backend is not sent, under the assumption that the UI interaction is logically synchronous and responsible for ensuring successful actuation.
@@ -85,9 +111,9 @@ export interface DocumentationBackendWorkspace {
     requestCreate(docId: number, markdown: string): Promise<BackendStatus | {"docId": number}>;
 
     /**
-     * Closes any outgoing connection to the backend. It must complete synchronously, because the workspace may be reopened immediately after calling dispose().
+     * Must complete synchronously, because the file may be reopened immediately after calling dispose().
      */
-    dispose(): void;
+    close(): void;
 }
 
 /**
@@ -104,7 +130,7 @@ export enum DocEventType {
 export interface DocAdd {
     type: DocEventType.Add;
     /**
-     * docId is a unique incrementing ID representing the object within a documentation backend workspace.
+     * docId is a unique (FOR THIS WORKSPACE!) incrementing ID representing the object within a documentation backend workspace.
      */
     docId: number;
     /**
