@@ -108,7 +108,7 @@ export class DocsManager {
         const sectionStrings = sections.map(
             (section) => section.section.fullContent
         );
-        return writeFile(filePath, sectionStrings.join("\n"));
+        return writeFile(filePath, sectionStrings.join(""));
     }
 
     async saveContents(): Promise<void> {
