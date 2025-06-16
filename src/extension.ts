@@ -70,7 +70,9 @@ export function activate(context: vscode.ExtensionContext) {
 									return;
 								}
 								const symbolDoc = symbolDocManager.createSymbolDoc(symbol.name, vscode.Uri.file(option));
-								symbolCommentManager.insertComment(symbolDoc, new vscode.Location(docUri, symbol.selectionRange));
+								const comment = symbolCommentManager.insertComment(symbolDoc, new vscode.Location(docUri, symbol.selectionRange));
+								comment.mode = vscode.CommentMode.Editing;
+								comment.onUserEdit();
 							});
 						break;
 					}

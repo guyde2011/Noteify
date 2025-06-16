@@ -74,13 +74,14 @@ export abstract class CommentsManager<D extends LinkedDoc, C extends ResearchCom
     protected abstract createComment(docs: D): C;
     protected abstract createCommentThread(docs: D, comment: C, location: vscode.Location): vscode.CommentThread;
 
-    insertComment(docs: D, location: vscode.Location) {
+    insertComment(docs: D, location: vscode.Location): C {
         if (!this.commentsById.has(docs.innerId)) {
             this.commentsById.set(docs.innerId, [docs, this.createComment(docs)]);
         }
         const [_, comment] = this.commentsById.get(docs.innerId)!;
         const thread = this.createCommentThread(docs, comment, location);
         comment.parents.push(thread);
+        return comment;
     }
 }
 
@@ -114,6 +115,10 @@ export async function makeComments(docs: SymbolDoc[]) {
         const wsSymbols: vscode.SymbolInformation[] =
             await vscode.commands.executeCommand("vscode.executeWorkspaceSymbolProvider", doc.symbol);
         for (const wsSymbol of wsSymbols) {
+            // Skip markdown files, otherwise you are pretty much unable to edit markdown
+            if (wsSymbol.location.uri.fsPath.endsWith(".md")) {
+                continue;
+            }
             symbolCommentManager.insertComment(doc, wsSymbol.location);
         }
     }

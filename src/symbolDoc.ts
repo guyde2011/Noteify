@@ -100,7 +100,7 @@ export class SymbolDocManager {
 
     createSymbolDoc(symbol: Symbol, docUri: Uri): SymbolDoc {
         // TODO: figure the right hashCount
-        const emptySection = new MarkdownSection(symbol, 3, [], this.docManager);
+        const emptySection = new MarkdownSection(` ${symbol}`, 3, [""], this.docManager);
         this.docManager.appendSection(docUri, emptySection);
         const updatedDocs = this.updateDocs(docUri);
         return updatedDocs[updatedDocs.length - 1];

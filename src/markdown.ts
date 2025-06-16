@@ -135,6 +135,16 @@ export class DocsManager {
             section: section,
             sectionIndex: originSections.length
         };
+
+        if (originSections.length > 0) {
+            const lastSection = originSections[originSections.length - 1].section;
+            if (lastSection.lines.length > 0 && lastSection.lines[lastSection.lines.length - 1].trim() !== "") {
+                // Per markdown standards, put an additional empty line between sections
+                lastSection.lines.push("");
+            }
+            // Start a new section via a new line if there's a section before
+            lastSection.lines.push("");
+        }
         originSections.push(docSection);
         return docSection;
     }
