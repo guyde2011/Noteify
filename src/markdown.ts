@@ -121,7 +121,7 @@ export class DocsManager {
         return this.fileSections.get(docFile.fsPath);
     }
 
-    getFiles(): MapIterator<string> {
+    getFiles(): Iterable<string> {
         return this.fileSections.keys();
     }
 
