@@ -7,9 +7,24 @@ export enum BackendStatus {
     NotFound = 3,
 }
 
+export function BackendStatusToString(s: BackendStatus): string {
+    switch (s) {
+        case BackendStatus.Success:
+            return "Success";
+        case BackendStatus.ConnectionClosed:
+            return "Connection Closed";
+        case BackendStatus.Unsupported:
+            return "Unsupported";
+        case BackendStatus.NotFound:
+            return "Not Found";
+        default:
+            return "Unrecognized error";
+    }
+}
+
 export interface DocumentationBackend {
     /**
-     * init says whether the backend is relevant in this universe.
+     * init checks whether the backend is relevant in this universe.
      * It is also allowed to initialize some very rudamentary empty state, like a database of open workspaces. This state must not be complicated enough to require a "dispose".
      * 
      * init is intended to complete quickly. It should be a very O(1) operation.
@@ -17,10 +32,19 @@ export interface DocumentationBackend {
      * Good usage examples of it include:
      * - Look for binaries relevant to this backend
      * - Check whether this backend's socket is open
-     * 
-     * @returns a boolean of whether the backend exists and can be opened.
      */
-    init(): Promise<boolean>;
+    init(): Promise<void>;
+
+    /**
+     * This field should be set by init(). It represents whether this documentation backend is valid for use.
+     * Do not call init() if this is true. Conversely, do not call open() and other functions if this is false.
+     */
+    isInitialized: boolean;
+
+    /**
+     * Unique user-facing name of this documentation backend.
+     */
+    name: string;
 
     /**
      * Opening a documentation backend:

@@ -5,14 +5,29 @@ import { DocumentationBackend, BackendStatus, DocumentationBackendWorkspace, Doc
 
 
 export class LocalFilesBackend implements DocumentationBackend {
-    async init(): Promise<boolean> {
-        return true;
+    isInitialized: boolean = false;
+    name: string = "Local Files"
+
+    async init(): Promise<void> {
+        this.isInitialized = true;
     }
 
     async open(workspaceUri: string): Promise<BackendStatus | DocumentationBackendWorkspace> {
         return new LocalFilesBackendWorkspace(workspaceUri);
     }
 }
+
+/*
+vscode.workspace.findFiles("* * / * .md").then((files) => {
+    for (const file of files) {
+        docManager.indexFile(file).then(() => {
+            const docs = symbolDocManager.updateDocs(file);
+            makeComments(docs);
+        });
+    }
+});
+*/
+
 
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     constructor(workspaceUri: string) {

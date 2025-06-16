@@ -2,21 +2,17 @@ import * as vscode from 'vscode';
 import { symbolDocManager } from './symbolDoc';
 import { initComments, makeComments, ResearchComment, symbolCommentManager } from './editorComment';
 import { docManager } from './backends/localFiles';
+import Session from './backends/Session';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
+	const session = new Session();
+	context.subscriptions.push(session);
 
 	initComments();
 
 	let loadDocs = vscode.commands.registerCommand('noteify.loadDocs', () => {
-		vscode.workspace.findFiles("**/*.md").then((files) => {
-			for (const file of files) {
-				docManager.indexFile(file).then(() => {
-					const docs = symbolDocManager.updateDocs(file);
-					makeComments(docs);
-				});
-			}
-		});
+		session.load();
 	});
 	context.subscriptions.push(loadDocs);
 
