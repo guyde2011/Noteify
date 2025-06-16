@@ -1,5 +1,5 @@
 import { Uri } from "vscode";
-import { docManager, DocsManager as DocManager, DocSection, MarkdownSection } from "./markdown";
+import { docManager, DocsManager as DocManager, DocSection, MarkdownSection } from "./backends/localFiles";
 
 export type Symbol = string;
 

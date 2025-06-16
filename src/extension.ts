@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { symbolDocManager } from './symbolDoc';
 import { initComments, makeComments, ResearchComment, symbolCommentManager } from './editorComment';
-import { docManager } from './markdown';
+import { docManager } from './backends/localFiles';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');

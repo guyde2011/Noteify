@@ -1,6 +1,53 @@
 import { Uri } from "vscode";
 import * as vscode from "vscode";
-import { readFile, writeFile } from "./utils";
+import { readFile, writeFile } from "../utils";
+import { DocumentationBackend, BackendStatus, DocumentationBackendWorkspace, DocEvent, DocEventType } from "./interface";
+
+
+export class LocalFilesBackend implements DocumentationBackend {
+    async init(): Promise<boolean> {
+        return true;
+    }
+
+    async open(workspaceUri: string): Promise<BackendStatus | DocumentationBackendWorkspace> {
+        return new LocalFilesBackendWorkspace(workspaceUri);
+    }
+}
+
+export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
+    constructor(workspaceUri: string) {
+        this.workspaceUri = workspaceUri;
+    }
+
+    workspaceUri: string;
+    properties = { featureFlags: { editDoc: false, createDoc: false, jumpTo: false } };
+    /**
+     * Modifying markdown files outside of actions is currently unimplemented.
+     */
+    async *listen(): AsyncIterator<DocEvent> {
+        yield {
+            "type": DocEventType.Add,
+            "docId": 0,
+            "lineOrSymbol": 1,
+            "markdown": "abc"
+        };
+    }
+
+    async requestJumpTo(docId: number): Promise<BackendStatus> {
+        return BackendStatus.Unsupported;
+    }
+    async requestEdit(docId: number, markdown: string): Promise<BackendStatus> {
+        return BackendStatus.Unsupported;
+    }
+    async requestCreate(docId: number, markdown: string): Promise<BackendStatus | { "docId": number; }> {
+        return BackendStatus.Unsupported;
+    }
+
+    dispose(): void {
+        // does nothing
+    }
+}
+
 
 export class MarkdownSection {
     public lines: string[];
