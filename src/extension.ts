@@ -34,9 +34,18 @@ export function activate(context: vscode.ExtensionContext) {
 			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
 			return thread;
 		},
-		delDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread | null): void {
+		delDoc(comment: vscode.CommentThread | null): void {
+			if (comment === null)
+				return;
+
+			comment.dispose();
 		},
-		changeDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread | null, markdown: string): void {
+		changeDoc(comment: vscode.CommentThread | null, markdown: string): void {
+			if (comment === null)
+				return;
+
+			comment.comments[0].body = markdown;
+			comment.comments = comment.comments;
 		},
 	});
 	context.subscriptions.push(session);

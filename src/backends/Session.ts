@@ -7,8 +7,8 @@ import * as vscode from "vscode";
  */
 export interface SessionFrontend<SessionFrontendDoc> {
     addDoc(textDocument: vscode.TextDocument, lineOrSymbol: number | string, markdown: string): SessionFrontendDoc;
-    delDoc(textDocument: vscode.TextDocument, doc: SessionFrontendDoc): void;
-    changeDoc(textDocument: vscode.TextDocument, doc: SessionFrontendDoc, markdown: string): void;
+    delDoc(doc: SessionFrontendDoc): void;
+    changeDoc(doc: SessionFrontendDoc, markdown: string): void;
 }
 
 export default class Session<FrontendComment, Frontend extends SessionFrontend<FrontendComment>> {
@@ -19,7 +19,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
     frontend: Frontend;
     frontendComments: Map<string, FrontendComment>;
 
-    subscriptions: {
+    listenerSubscriptions: {
         /**
          * Function to clean up resources.
          */
@@ -40,7 +40,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
         this.fileBackends = new Map();
         this.frontend = frontend;
         this.frontendComments = new Map();
-        this.subscriptions = [];
+        this.listenerSubscriptions = [];
 
         // listen to stuff
         this.listenToTextDocuments();
@@ -67,7 +67,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
                 sessionFile.openFor(worskpaceBackend);
             }
         });
-        this.subscriptions.push(ev);
+        this.listenerSubscriptions.push(ev);
         // documents that have been closed
         ev = vscode.workspace.onDidCloseTextDocument(textDocument => {
             const sessionFile = this.fileBackends.get(textDocument);
@@ -76,7 +76,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
                 this.fileBackends.delete(textDocument);
             }
         });
-        this.subscriptions.push(ev);
+        this.listenerSubscriptions.push(ev);
     }
 
     onDocEvent(textDocument: vscode.TextDocument, workspaceBackend: DocumentationBackendWorkspace, docEvent: DocEvent): void {
@@ -98,7 +98,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
                 const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
                 const deletedComment = this.frontendComments.get(key);
                 if (deletedComment !== undefined) {
-                    this.frontend.delDoc(textDocument, deletedComment);
+                    this.frontend.delDoc(deletedComment);
                     this.frontendComments.delete(key);
                 } else {
                     console.error("got delete event for undefined comment");
@@ -110,7 +110,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
                 const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
                 const changedComment = this.frontendComments.get(key);
                 if (changedComment !== undefined) {
-                    this.frontend.changeDoc(textDocument, changedComment, docEvent.markdown);
+                    this.frontend.changeDoc(changedComment, docEvent.markdown);
                 } else {
                     console.error("got change event for undefined comment");
                 }
@@ -174,16 +174,32 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
     }
 
     dispose(): void {
+        // close generic subscriptions
+        for (let sub of this.listenerSubscriptions) {
+            sub.dispose();
+        }
+        this.listenerSubscriptions = [];
+
+        // close backend files before their workspaces
+        this.fileBackends.forEach((sessionFile, _textDocument, _map) => {
+            sessionFile.close();
+        })
+        this.fileBackends = new Map();
+
+        // delete frontend comments
+        this.frontendComments.forEach((frontendComment, _key, _map) => {
+            this.frontend.delDoc(frontendComment);
+        });
+
+        // close backend workspaces
         for (let workspace of this.openBackendWorkspaces) {
             workspace.dispose();
         }
         this.openBackendWorkspaces = [];
-        this.backendsWorkspacesOpen = [];
+
+        // other
         this.allBackends = [];
-        for (let sub of this.subscriptions) {
-            sub.dispose();
-        }
-        this.subscriptions = [];
+        this.backendsWorkspacesOpen = [];
     }
 }
 
