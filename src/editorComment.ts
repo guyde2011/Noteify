@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { LinkedDoc, SymbolDoc } from "./symbolDoc";
-import { lspProvider, LSPSymbolProvider, SymbolData, tsProvider, TSSymbolProvider } from "./parsing/symbol";
-import { fileParser } from "./parsing/parsing";
+import { lspProvider, SymbolData, tsProvider } from "./parsing/symbol";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 var lastCommentId = 0;

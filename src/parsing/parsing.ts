@@ -1,6 +1,6 @@
 import { Query, SyntaxNode, Tree } from "tree-sitter";
 import Parser = require("tree-sitter");
-import { LangApi, Language, Languages } from "./treeSitter";
+import { LangApi, Languages } from "./treeSitter";
 import { Position, Range } from "vscode";
 import { readFile } from "../utils";
 

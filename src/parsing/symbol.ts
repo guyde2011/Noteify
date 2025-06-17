@@ -1,6 +1,5 @@
 import { commands, DocumentSymbol, Range, SymbolInformation, Uri, workspace } from "vscode";
-import { FileParser, fileParser, findMinimalContainingNode, getNodeRange, ParsedFile, queriesCaptures } from "./parsing";
-import { } from "path";
+import { FileParser, fileParser, findMinimalContainingNode, getNodeRange, queriesCaptures } from "./parsing";
 
 
 export type SymbolData = {
