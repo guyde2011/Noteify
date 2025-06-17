@@ -1,5 +1,5 @@
 import { Uri } from "vscode";
-import { docManager, DocsManager as DocManager, DocSection, MarkdownSection } from "./backends/localFiles";
+import { DocsManager as DocManager, DocSection, MarkdownSection } from "./backends/localFiles";
 
 export type Symbol = string;
 
@@ -108,7 +108,7 @@ export class SymbolDocManager {
 
 }
 
-export var symbolDocManager = new SymbolDocManager(docManager);
+// export var symbolDocManager = new SymbolDocManager(docManager);
 
 function isSymbolLike(text: string): boolean {
     return text.trim().search(new RegExp("[ \t{}\\\\'\"]")) === -1;

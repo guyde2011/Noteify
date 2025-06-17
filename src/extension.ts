@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
-import { symbolDocManager } from './symbolDoc';
 import { initComments, CommentDoc, symbolCommentController } from './editorComment';
-import { docManager } from './backends/localFiles';
 import Session from './backends/Session';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -18,7 +16,9 @@ export function activate(context: vscode.ExtensionContext) {
 				return null;
 			}
 
-			if (lineOrSymbol >= textDocument.lineCount) {
+			const lineIndex = lineOrSymbol - 1;
+
+			if (lineIndex < 0 || lineIndex >= textDocument.lineCount) {
 				// can't create
 				return null;
 			}
@@ -29,7 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			const comment = new CommentDoc(markdown);
-			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineOrSymbol).range, [comment]);
+			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineIndex).range, [comment]);
 			thread.canReply = false;
 			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
 			return thread;

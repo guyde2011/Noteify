@@ -19,12 +19,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
     frontend: Frontend;
     frontendComments: Map<string, FrontendComment>;
 
-    listenerSubscriptions: {
-        /**
-         * Function to clean up resources.
-         */
-        dispose(): any;
-    }[];
+    listenerSubscriptions: {dispose(): any;}[];
 
     /**
      * The Session class holds state over all of the currently open backends, including information about each open file.
@@ -175,8 +170,8 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
 
     dispose(): void {
         // close generic subscriptions
-        for (let sub of this.listenerSubscriptions) {
-            sub.dispose();
+        for (let i = this.listenerSubscriptions.length - 1; i >= 0; i -= 1) {
+            this.listenerSubscriptions[i].dispose();
         }
         this.listenerSubscriptions = [];
 
@@ -214,14 +209,14 @@ export class SessionFile {
 
     openFor(workspaceBackend: DocumentationBackendWorkspace): void {
         console.log(`Opening ${this.textDocument.uri} for backend ${workspaceBackend}`)
-        workspaceBackend.openFile(this.textDocument.uri.toString()).then(backendFile => {
+        const listener = this.onDocEvent.bind(null, this.textDocument, workspaceBackend);
+        workspaceBackend.openFile(this.textDocument.uri.toString(), listener).then(backendFile => {
             if (this.isClosed) {
                 console.log("Lost the race: file got closed before its backend got created.");
                 backendFile.close();
             } else {
                 console.log(`Successfuly opened ${this.textDocument.uri} for backend ${workspaceBackend}`)
                 this.backendFiles.push(backendFile);
-                backendFile.setListener(this.onDocEvent.bind(null, this.textDocument, backendFile.parentWorkspace));
             }
         });
     }

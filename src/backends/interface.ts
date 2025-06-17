@@ -76,8 +76,9 @@ export interface DocumentationBackendWorkspace {
     /**
      * Starts bidirectional communication for events about documentation for a file URI.
      * @param fileUri Based on a TextDocument's uri, converted toString.
+     * @param listener A stream of documentation events is the main way for the documentation backend to send its updates as well as the initial contents to the frontend.
      */
-    openFile(fileUri: string): Promise<DocumentationBackendFile>;
+    openFile(fileUri: string, listener: (_: DocEvent) => void): Promise<DocumentationBackendFile>;
 
     /**
      * Closes any outgoing connection to the backend. It must complete synchronously, because the workspace may be reopened immediately after calling dispose().
@@ -89,17 +90,17 @@ export interface DocumentationBackendFile {
     /**
      * Workspace from which this file was opened.
      */
-    parentWorkspace: DocumentationBackendWorkspace;
+    readonly parentWorkspace: DocumentationBackendWorkspace;
 
     /**
      * The URI with which the backend file was opened.
      */
-    fileUri: string;
+    readonly fileUri: string;
 
     /**
-     * A stream of documentation events is the main way for the documentation backend to send its updates as well as the initial contents to the frontend.
+     * The listener with which the backend file was opened.
      */
-    setListener(e: (_: DocEvent) => void): void;
+    readonly listener: (_: DocEvent) => void;
 
     // When a request returns, it means that it was received by the backend.
     // As a design decision, the corresponding event for a similar change initiated by the backend is not sent, under the assumption that the UI interaction is logically synchronous and responsible for ensuring successful actuation.
