@@ -71,7 +71,13 @@ export interface DocumentationBackendWorkspace<BackendFile extends Documentation
             editDoc: boolean;
             deleteDoc: boolean;
             createDoc: boolean;
-        }
+        };
+
+        /**
+         * Comment docs show this name to identify the backend
+         * Should be of the pattern: "Noteify via ..."
+         */
+        viaName: string;
     };
 
     /**

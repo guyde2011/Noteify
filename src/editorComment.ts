@@ -30,7 +30,7 @@ export class CommentDoc implements vscode.Comment {
     }
 
     get label(): string {
-        return "(From noteify)";
+        return this.requestHandle.backendProperties.viaName;
     }
 
     get contextValue(): string {

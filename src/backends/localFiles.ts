@@ -21,7 +21,7 @@ export class LocalFilesBackend implements DocumentationBackend {
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     // mandatory for backend workspaces
     workspaceUri: string;
-    properties = { featureFlags: { jumpTo: true, editDoc: false, deleteDoc: false, createDoc: false } };
+    properties = { featureFlags: { jumpTo: true, editDoc: false, deleteDoc: false, createDoc: false }, viaName: "Noteify via local files" };
 
     // implementation of local files backend
     listenerSubscriptions: {dispose(): any;}[] = [];
