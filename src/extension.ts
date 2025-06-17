@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { initComments, CommentDoc, symbolCommentController } from './editorComment';
 import { Session, SessionFrontendRequestHandle } from './backends/Session';
+import { BackendStatus, BackendStatusToString } from './backends/interface';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -97,7 +98,15 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	vscode.commands.registerCommand('noteify.jumpTo', (comment: vscode.Comment) => {
-		vscode.window.showInformationMessage("Unsupported");
+		if (!(comment instanceof CommentDoc)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
+		}
+		comment.requestHandle.jumpTo().then(status => {
+			if (status != BackendStatus.Success) {
+				vscode.window.showErrorMessage(`Jump failed with error ${BackendStatusToString(status)}`);
+			}
+		})
 	});
 
 	vscode.commands.registerCommand('noteify.saveNote', (comment: vscode.Comment) => {

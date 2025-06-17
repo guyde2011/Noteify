@@ -21,7 +21,7 @@ export class LocalFilesBackend implements DocumentationBackend {
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     // mandatory for backend workspaces
     workspaceUri: string;
-    properties = { featureFlags: { jumpTo: false, editDoc: false, deleteDoc: false, createDoc: false } };
+    properties = { featureFlags: { jumpTo: true, editDoc: false, deleteDoc: false, createDoc: false } };
 
     // implementation of local files backend
     listenerSubscriptions: {dispose(): any;}[] = [];
@@ -53,7 +53,7 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
             if (oldData !== undefined) {
                 // Remove from file indexes...
             }
-            const newData = LocalMarkdownFile.fromBytes(contents);
+            const newData = LocalMarkdownFile.fromBytes(uri, contents);
             // Add to file indexes...
             this.markdownFiles.set(uri.toString(), newData);
             // For now: just forcefully updating every file
@@ -109,16 +109,26 @@ interface FileMarkdownEntry {
     docId: number;
     lineOrSymbol: number | string;
     markdown: string;
+    sourceFilePosition: number;
+    sourceFileUri: Uri;
 };
 
 export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFilesBackendFile> {
     nextId: number = 0
     markdownEntriesByLineOrSymbol: Map<number | string, FileMarkdownEntry> = new Map();
+    markdownEntriesById: Map<number, FileMarkdownEntry> = new Map();
 
     constructor(public parentWorkspace: LocalFilesBackendWorkspace, public fileUri: string, public listener: (_: LocalFilesBackendFile, _e: DocEvent) => void) {}
 
     async requestJumpTo(docId: number): Promise<BackendStatus> {
-        return BackendStatus.Unsupported;
+        const entry = this.markdownEntriesById.get(docId);
+
+        if (entry !== undefined) {
+            vscode.window.showTextDocument(entry.sourceFileUri/*, { range: new vscode.Range(position, position) }*/);
+            return BackendStatus.Success;
+        } else {
+            return BackendStatus.NotFound;
+        }
     }
 
     async requestEdit(docId: number, markdown: string): Promise<BackendStatus> {
@@ -133,12 +143,13 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
         return BackendStatus.Unsupported;
     }
 
-    assignMarkdown(lineOrSymbol: number | string, markdown: string) {
+    assignMarkdown(lineOrSymbol: number | string, markdown: string, sourceFilePosition: number, sourceFileUri: Uri) {
         const entry = this.markdownEntriesByLineOrSymbol.get(lineOrSymbol);
         if (entry === undefined) {
-            const id = this.nextId++;
-            const newEntry = {docId: id, lineOrSymbol: lineOrSymbol, markdown: markdown};
+            const docId = this.nextId++;
+            const newEntry = {docId, lineOrSymbol, markdown, sourceFilePosition, sourceFileUri};
             this.markdownEntriesByLineOrSymbol.set(lineOrSymbol, newEntry);
+            this.markdownEntriesById.set(docId, newEntry);
             this.listener(this, {
                 type: DocEventType.Add,
                 ...newEntry
@@ -162,6 +173,7 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
 
             // this is safe, apparently, even when iterating
             this.markdownEntriesByLineOrSymbol.delete(lineOrSymbol);
+            this.markdownEntriesById.delete(entry.docId);
         }
     }
 
@@ -185,7 +197,7 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
 
                 if (maybeLineOrSymbol !== undefined) {
                     newSymbolSet.add(maybeLineOrSymbol);
-                    this.assignMarkdown(maybeLineOrSymbol, linkRef.documentationContents);
+                    this.assignMarkdown(maybeLineOrSymbol, linkRef.documentationContents, linkRef.docPosition, linkRef.markdownFile.uri);
                 }
             }
         }
@@ -204,11 +216,12 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
 }
 
 class LocalMarkdownFile {
-    private constructor(public linkReferences: LocalMarkdownReference[]) {}
+    private constructor(public uri: Uri, public linkReferences: LocalMarkdownReference[]) {}
 
-    static fromBytes(bytes: Uint8Array): LocalMarkdownFile {
+    static fromBytes(uri: Uri, bytes: Uint8Array): LocalMarkdownFile {
         // look for any possible References
-        let linkReferences = [];
+        let linkReferences: LocalMarkdownReference[] = [];
+        const result = new LocalMarkdownFile(uri, linkReferences);
 
         // Indexing should be fast and May contain false positives.
 
@@ -236,7 +249,7 @@ class LocalMarkdownFile {
                         // we are after two newlines in a row: this was a successful parse.
                         try {
                             documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                            linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, docPosition));
+                            linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, docPosition));
                         } catch (e) {}
                     }
                     // new line
@@ -253,7 +266,7 @@ class LocalMarkdownFile {
                     // rather than two lines in a row, there is new line with a title interrupting us
                     try {
                         documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                        linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, docPosition));
+                        linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, docPosition));
                     } catch (e) {}
 
                     // also, a new line just started
@@ -297,10 +310,10 @@ class LocalMarkdownFile {
             }
         }
 
-        return new LocalMarkdownFile(linkReferences);
+        return result;
     }
 }
 
 class LocalMarkdownReference {
-    constructor(public linkDestination: string, public documentationContents: string, public docPosition: number) {}
+    constructor(public markdownFile: LocalMarkdownFile, public linkDestination: string, public documentationContents: string, public docPosition: number) {}
 }
