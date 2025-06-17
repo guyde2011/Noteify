@@ -26,22 +26,31 @@ export function activate(context: vscode.ExtensionContext) {
 	initComments();
 
 	const session = new Session({
-		addDoc(textDocument: vscode.TextDocument, lineOrSymbol: number | string, markdown: string): vscode.CommentThread {
+		addDoc(textDocument: vscode.TextDocument, lineOrSymbol: number | string, markdown: string): vscode.CommentThread | null {
 			console.log(`addDoc ${lineOrSymbol} ${markdown}`);
-			if (typeof lineOrSymbol !== "number")
-				throw "aaaaa";
+
+			if (typeof lineOrSymbol !== "number") {
+				// can't create
+				return null;
+			}
 
 			if (lineOrSymbol >= textDocument.lineCount) {
-				// resiliency
-				lineOrSymbol = 0;
+				// can't create
+				return null;
 			}
+
+			if (textDocument.uri.scheme == "comment") {
+				// don't want to create comments for comments
+				return null;
+			}
+
 			const comment = new MishaComment(markdown);
 			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineOrSymbol).range, [comment]);
 			return thread;
 		},
-		delDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread): void {
+		delDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread | null): void {
 		},
-		changeDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread, markdown: string): void {
+		changeDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread | null, markdown: string): void {
 		},
 	});
 	context.subscriptions.push(session);
