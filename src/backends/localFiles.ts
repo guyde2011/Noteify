@@ -1,8 +1,7 @@
 import { Uri } from "vscode";
 import * as vscode from "vscode";
-import { readFile, writeFile } from "../utils";
 import { DocumentationBackend, BackendStatus, DocumentationBackendWorkspace, DocEvent, DocEventType, DocumentationBackendFile } from "./interface";
-import { TextDecoder } from "util";
+import { TextDecoder, TextEncoder } from "util";
 
 
 export class LocalFilesBackend implements DocumentationBackend {
@@ -21,7 +20,7 @@ export class LocalFilesBackend implements DocumentationBackend {
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     // mandatory for backend workspaces
     workspaceUri: string;
-    properties = { featureFlags: { jumpTo: true, editDoc: false, deleteDoc: false, createDoc: false }, viaName: "Noteify via local files" };
+    properties = { featureFlags: { jumpTo: true, editDoc: true, deleteDoc: false, createDoc: false }, viaName: "Noteify via local files" };
 
     // implementation of local files backend
     listenerSubscriptions: {dispose(): any;}[] = [];
@@ -47,7 +46,7 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
         })
     }
 
-    onUpdatedFileUri(uri: Uri) {
+    onUpdatedFileUri(uri: Uri): void {
         vscode.workspace.fs.readFile(uri).then(contents => {
             const oldData = this.markdownFiles.get(uri.toString());
             if (oldData !== undefined) {
@@ -61,7 +60,7 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
         });
     }
 
-    onDeletedFileUri(uri: Uri) {
+    onDeletedFileUri(uri: Uri): void {
         const markdownFile = this.markdownFiles.get(uri.toString());
         if (markdownFile !== undefined) {
             // Remove from file indexes
@@ -133,7 +132,76 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
     }
 
     async requestEdit(docId: number, markdown: string): Promise<BackendStatus> {
-        return BackendStatus.Unsupported;
+        const entry = this.markdownEntriesById.get(docId);
+
+        if (entry !== undefined) {
+            entry.markdown = markdown;
+            const bytes = await vscode.workspace.fs.readFile(entry.sourceFileUri);
+
+            // find the line by its index
+            let i = 0, lineIndex = 0;
+            for (; i < bytes.length && lineIndex < entry.sourceLineNumber; i++) {
+                const b = bytes[i];
+                if (b == "\n".charCodeAt(0)) {
+                    lineIndex++;
+                }
+            }
+
+            // find where the contents start and end
+            // basic validation for the title line:
+            if (i >= bytes.length - 1 || bytes[i++] != "#".charCodeAt(0)) {
+                console.log(`title was not found: ${bytes[i]}, ${i + 1 < bytes.length ? bytes[i + 1] : -1}`);
+                return BackendStatus.NotFound;
+            }
+
+            // go to next line
+            for (; i < bytes.length; i++) {
+                const b = bytes[i];
+                if (b == "\n".charCodeAt(0))
+                    break;
+            }
+
+            // skip preceding newlines
+            for (; i < bytes.length; i++) {
+                const b = bytes[i];
+                if (b != "\n".charCodeAt(0))
+                    break;
+            }
+
+            const startOffset = i;
+
+            // find end offset
+            for (; i < bytes.length - 1; i++) {
+                const b = bytes[i];
+                const c = bytes[i + 1];
+                if (b == "\n".charCodeAt(0) && c == "\n".charCodeAt(0) || b == "\n".charCodeAt(0) && c == "#".charCodeAt(0))
+                    break;
+            }
+
+            const endOffset = i;
+
+            if (startOffset == endOffset) {
+                console.log("contents were not found");
+                return BackendStatus.NotFound;
+            }
+
+            const markdownBytes = new TextEncoder().encode(markdown);
+
+            // replace the range between startOffset and endOffset
+            const newBytes = new Uint8Array(bytes.length - (endOffset - startOffset) + markdownBytes.length);
+            newBytes.set(bytes.subarray(0, startOffset), 0);
+            newBytes.set(markdownBytes, startOffset);
+            newBytes.set(bytes.subarray(endOffset, bytes.length), startOffset + markdownBytes.length);
+
+            await vscode.workspace.fs.writeFile(entry.sourceFileUri, newBytes);
+            // NOTE: This WILL send a Change event, which is unnecessary in the API. But it doesn't really matter.
+            this.parentWorkspace.onUpdatedFileUri(entry.sourceFileUri);
+
+            return BackendStatus.Success;
+        } else {
+            console.log("edited entry was not found");
+            return BackendStatus.NotFound;
+        }
     }
 
     async requestDelete(docId: number): Promise<BackendStatus> {

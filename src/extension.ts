@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext) {
 	initComments();
 
 	const session = new Session({
-		addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): vscode.CommentThread | null {
+		addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): CommentDoc | null {
 			console.log(`addDoc ${lineOrSymbol} ${markdown}`);
 
 			if (typeof lineOrSymbol !== "number") {
@@ -29,24 +29,26 @@ export function activate(context: vscode.ExtensionContext) {
 				return null;
 			}
 
-			const comment = new CommentDoc(markdown, requestHandle);
-			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineIndex).range, [comment]);
+			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineIndex).range, []);
+			const comment = new CommentDoc(markdown, requestHandle, thread);
 			thread.canReply = false;
 			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
-			return thread;
+			thread.comments = [comment];
+			return comment;
 		},
-		delDoc(comment: vscode.CommentThread | null): void {
+		delDoc(comment: CommentDoc | null): void {
 			if (comment === null)
 				return;
 
-			comment.dispose();
+			comment.parentThread.dispose();
 		},
-		changeDoc(comment: vscode.CommentThread | null, markdown: string): void {
+		changeDoc(comment: CommentDoc | null, markdown: string): void {
 			if (comment === null)
 				return;
 
-			comment.comments[0].body = markdown;
-			comment.comments = comment.comments;
+			comment.originMarkdown = markdown;
+			comment.markdown = markdown;
+			comment.parentThread.comments = comment.parentThread.comments;
 		},
 	});
 	context.subscriptions.push(session);
@@ -83,18 +85,12 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	vscode.commands.registerCommand('noteify.editNote', (comment: vscode.Comment) => {
-		vscode.window.showInformationMessage("Unsupported");
-		/*
-		for (const parent of comment.parents) {
-			parent.comments = parent.comments.map(child => {
-				if ((child as ResearchComment).id === comment.id) {
-					child.mode = vscode.CommentMode.Editing;
-				}
-
-				return child;
-			});
+		if (!(comment instanceof CommentDoc)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
 		}
-		*/
+		comment.mode = vscode.CommentMode.Editing;
+		comment.parentThread.comments = comment.parentThread.comments;
 	});
 
 	vscode.commands.registerCommand('noteify.jumpTo', (comment: vscode.Comment) => {
@@ -110,11 +106,23 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	vscode.commands.registerCommand('noteify.saveNote', (comment: vscode.Comment) => {
-		vscode.window.showInformationMessage("Unsupported");
-		/*
+		if (!(comment instanceof CommentDoc)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
+		}
 		comment.mode = vscode.CommentMode.Preview;
-		comment.onUserEdit();
-		*/
+		comment.requestHandle.edit(comment.markdown).then(status => {
+			if (status != BackendStatus.Success) {
+				vscode.window.showErrorMessage(`Edit failed with error ${BackendStatusToString(status)}`);
+				// restore original contents
+				comment.markdown = comment.originMarkdown;
+			} else {
+				// once the promise returned, we are done.
+			}
+
+			// refresh view of the comment
+			comment.parentThread.comments = comment.parentThread.comments;
+		})
 	});
 
 	vscode.commands.registerCommand('noteify.addSymbolDoc', () => {

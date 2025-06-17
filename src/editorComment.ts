@@ -10,13 +10,21 @@ export function initComments() {
 }
 
 export class CommentDoc implements vscode.Comment {
+    mode: vscode.CommentMode = vscode.CommentMode.Preview;
+    author: vscode.CommentAuthorInformation = { name: "Researcher" };
+    /**
+     * markdown may be assigned by an editor, whereas originMarkdown is the value set by the object itself.
+     * markdown is restored to originMarkdown after an edit is cancelled.
+     */
+    markdown: string;
+
     constructor(
-	    public markdown: string,
+	    public originMarkdown: string,
         public requestHandle: SessionFrontendRequestHandle,
-        public mode: vscode.CommentMode = vscode.CommentMode.Preview,
-        public author: vscode.CommentAuthorInformation = { name: "Researcher" },
-        public parents: vscode.CommentThread[] = [],
-    ) {};
+        public parentThread: vscode.CommentThread,
+    ) {
+        this.markdown = originMarkdown;
+    };
 
     get body(): vscode.MarkdownString {
         return new vscode.MarkdownString(this.markdown);
