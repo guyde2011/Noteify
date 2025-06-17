@@ -2,15 +2,19 @@ import * as vscode from 'vscode';
 import { symbolDocManager } from './symbolDoc';
 import { initComments, showSymbolDocs, ResearchComment, symbolCommentManager } from './editorComment';
 import { docManager } from './markdown';
-import { fileParser } from './parsing/parsing';
 import { lspProvider, tsProvider } from './parsing/symbol';
+
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
 
+	const registerCommand = (command: string, callback: (...args: any) => any) => {
+		const registered = vscode.commands.registerCommand(command, callback);
+		context.subscriptions.push(registered);
+	};
 	initComments();
 
-	let loadDocs = vscode.commands.registerCommand('noteify.loadDocs', () => {
+	registerCommand('noteify.loadDocs', () => {
 		vscode.workspace.findFiles("**/*.md").then((files) => {
 			for (const file of files) {
 				docManager.indexFile(file).then(() => {
@@ -20,39 +24,45 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	});
-	context.subscriptions.push(loadDocs);
 
-	vscode.commands.registerCommand('noteify.deleteThread', (thread: vscode.CommentThread) => {
-		thread.dispose();
+	registerCommand('noteify.deleteNote', (thread: vscode.CommentThread) => {
+		for (const comment of thread.comments) {
+			if (!(comment instanceof ResearchComment)) {
+				continue;
+			}
+			for (const parent of (comment as ResearchComment).parents) {
+				parent.comments = parent.comments.filter(cmt => (cmt as ResearchComment).id !== comment.id);
+				if (parent.comments.length === 0) {
+					parent.dispose();
+				}
+			}
+		}
+
 	});
 
-	vscode.commands.registerCommand('noteify.deleteNote', (comment: ResearchComment) => {
-		for (const parent of comment.parents) {
-			parent.comments = parent.comments.filter(cmt => (cmt as ResearchComment).id !== comment.id);
-			if (parent.comments.length === 0) {
-				parent.dispose();
+	registerCommand('noteify.editNote', (thread: vscode.CommentThread) => {
+		for (const comment of thread.comments) {
+			if (!(comment instanceof ResearchComment)) {
+				continue;
+			}
+			for (const parent of (comment as ResearchComment).parents) {
+				parent.comments = parent.comments.map(child => {
+					if ((child as ResearchComment).id === comment.id) {
+						child.mode = vscode.CommentMode.Editing;
+					}
+
+					return child;
+				});
 			}
 		}
 	});
 
-	vscode.commands.registerCommand('noteify.editNote', (comment: ResearchComment) => {
-		for (const parent of comment.parents) {
-			parent.comments = parent.comments.map(child => {
-				if ((child as ResearchComment).id === comment.id) {
-					child.mode = vscode.CommentMode.Editing;
-				}
-
-				return child;
-			});
-		}
-	});
-
-	vscode.commands.registerCommand('noteify.saveNote', (comment: ResearchComment) => {
+	registerCommand('noteify.saveNote', (comment: ResearchComment) => {
 		comment.mode = vscode.CommentMode.Preview;
 		comment.onUserEdit();
 	});
 
-	vscode.commands.registerCommand('noteify.addSymbolDoc', () => {
+	registerCommand('noteify.addSymbolDoc', () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			return;
