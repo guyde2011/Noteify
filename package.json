@@ -9,31 +9,71 @@
 	"categories": [
 		"Other"
 	],
-	"activationEvents": [
-		"onCommand:noteify.helloWorld"
-	],
+	"activationEvents": [],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
 			{
 				"command": "noteify.loadDocs",
-				"title": "Load Noteify Docs"
+				"title": "Load Noteify Docs",
+				"category": "Noteify"
 			},
 			{
 				"command": "noteify.editNote",
-				"title": "Edit"
+				"title": "Edit",
+				"category": "Noteify"
+			},
+			{
+				"command": "noteify.editSymbolDoc",
+				"title": "Edit Symbol Note",
+				"category": "Noteify"
 			},
 			{
 				"command": "noteify.deleteNote",
-				"title": "Delete"
-			},
-			{
-				"command": "noteify.addSymbolDoc",
-				"title": "Document Symbol"
+				"title": "Delete",
+				"category": "Noteify"
 			},
 			{
 				"command": "noteify.saveNote",
-				"title": "Save"
+				"title": "Save",
+				"category": "Noteify"
+			},
+			{
+				"command": "noteify.expandNote",
+				"title": "Expand Note",
+				"category": "Noteify"
+			},
+			{
+				"command": "noteify.foldNote",
+				"title": "Fold Note",
+				"category": "Noteify"
+			},
+			{
+				"command": "noteify.addSymbolDoc",
+				"title": "Document Symbol",
+				"category": "Noteify"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "noteify.addSymbolDoc",
+				"key": "ctrl+shift+/",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "noteify.expandNote",
+				"key": "ctrl+alt+[",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "noteify.foldNote",
+				"key": "ctrl+alt+]",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "noteify.editSymbolDoc",
+				"key": "ctrl+alt+e",
+				"when": "editorTextFocus"
 			}
 		],
 		"menus": {
