@@ -164,7 +164,7 @@ export class LocalFilesBackendFile implements DocumentationBackendFile {
                 }
 
                 if (maybeLineOrSymbol !== undefined) {
-                    this.assignMarkdown(maybeLineOrSymbol, `link to ${linkRef.linePosition} going to ${linkRef.linkDestination}. should be ${this.fileUri}`);
+                    this.assignMarkdown(maybeLineOrSymbol, `link to ${linkRef.linePosition} going to ${linkRef.linkDestination}. we are in ${this.fileUri}`);
                 }
             }
         }
