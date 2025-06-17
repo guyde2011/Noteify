@@ -59,12 +59,12 @@
 				{
 					"command": "noteify.editNote",
 					"group": "group@1",
-					"when": "commentController == noteify-comments"
+					"when": "commentController == noteify-comments && comment =~ /e/"
 				},
 				{
 					"command": "noteify.deleteNote",
 					"group": "group@2",
-					"when": "commentController == noteify-comments"
+					"when": "commentController == noteify-comments && comment =~ /d/"
 				}
 			]
 		}

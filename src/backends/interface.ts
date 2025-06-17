@@ -56,7 +56,7 @@ export interface DocumentationBackend {
     open(workspaceUri: string): Promise<BackendStatus | DocumentationBackendWorkspace>;
 }
 
-export interface DocumentationBackendWorkspace {
+export interface DocumentationBackendWorkspace<BackendFile extends DocumentationBackendFile<BackendFile> = any> {
     /**
      * A documentation backend workspace is an instance of the backend, which may have outgoing connections and may be specific to the workspace.
      * Nonetheless, it is possible for several workspace to share a connection in the backend, if a reference count or other tracking mechanism is maintained.
@@ -67,9 +67,10 @@ export interface DocumentationBackendWorkspace {
          * Nonetheless, the backend is required to implement and return an "Unsupported" status for unsupported features.
          */
         featureFlags: {
-            editDoc: boolean;
-            createDoc: boolean;
             jumpTo: boolean;
+            editDoc: boolean;
+            deleteDoc: boolean;
+            createDoc: boolean;
         }
     };
 
@@ -78,7 +79,7 @@ export interface DocumentationBackendWorkspace {
      * @param fileUri Based on a TextDocument's uri, converted toString.
      * @param listener A stream of documentation events is the main way for the documentation backend to send its updates as well as the initial contents to the frontend.
      */
-    openFile(fileUri: string, listener: (_: DocEvent) => void): Promise<DocumentationBackendFile>;
+    openFile(fileUri: string, listener: (_: BackendFile, _e: DocEvent) => void): Promise<BackendFile>;
 
     /**
      * Closes any outgoing connection to the backend. It must complete synchronously, because the workspace may be reopened immediately after calling dispose().
@@ -86,11 +87,11 @@ export interface DocumentationBackendWorkspace {
     dispose(): void;
 }
 
-export interface DocumentationBackendFile {
+export interface DocumentationBackendFile<Self extends DocumentationBackendFile<Self> = any> {
     /**
      * Workspace from which this file was opened.
      */
-    readonly parentWorkspace: DocumentationBackendWorkspace;
+    readonly parentWorkspace: DocumentationBackendWorkspace<Self>;
 
     /**
      * The URI with which the backend file was opened.
@@ -98,14 +99,16 @@ export interface DocumentationBackendFile {
     readonly fileUri: string;
 
     /**
-     * The listener with which the backend file was opened.
+     * The listener with which the backend file was opened. The listener gets a reference to this object.
      */
-    readonly listener: (_: DocEvent) => void;
+    readonly listener: (_: Self, _e: DocEvent) => void;
 
     // When a request returns, it means that it was received by the backend.
     // As a design decision, the corresponding event for a similar change initiated by the backend is not sent, under the assumption that the UI interaction is logically synchronous and responsible for ensuring successful actuation.
+    // NOTE: After adding a new request here, you should consider adding it to SessionFrontendRequestHandle.
     requestJumpTo(docId: number): Promise<BackendStatus>;
     requestEdit(docId: number, markdown: string): Promise<BackendStatus>;
+    requestDelete(docId: number): Promise<BackendStatus>;
     /**
      * @returns either a backend status, or the document ID wrapped under a small object because BackendStatus is a number too.
      */

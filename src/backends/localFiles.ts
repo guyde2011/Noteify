@@ -13,7 +13,7 @@ export class LocalFilesBackend implements DocumentationBackend {
         this.isInitialized = true;
     }
 
-    async open(workspaceUri: string): Promise<BackendStatus | DocumentationBackendWorkspace> {
+    async open(workspaceUri: string): Promise<BackendStatus | LocalFilesBackendWorkspace> {
         return new LocalFilesBackendWorkspace(workspaceUri);
     }
 }
@@ -21,7 +21,7 @@ export class LocalFilesBackend implements DocumentationBackend {
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     // mandatory for backend workspaces
     workspaceUri: string;
-    properties = { featureFlags: { editDoc: false, createDoc: false, jumpTo: false } };
+    properties = { featureFlags: { jumpTo: false, editDoc: false, deleteDoc: false, createDoc: false } };
 
     // implementation of local files backend
     listenerSubscriptions: {dispose(): any;}[] = [];
@@ -74,7 +74,7 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
     /**
      * openFile and closeChildFile should pair up to work well together
      */
-    async openFile(fileUri: string, listener: (_: DocEvent) => void): Promise<LocalFilesBackendFile> {
+    async openFile(fileUri: string, listener: (_: LocalFilesBackendFile, _e: DocEvent) => void): Promise<LocalFilesBackendFile> {
         const fileBackend = new LocalFilesBackendFile(this, fileUri, listener);
         this.sourceFiles.set(fileUri, fileBackend);
         return fileBackend;
@@ -111,18 +111,24 @@ interface FileMarkdownEntry {
     markdown: string;
 };
 
-export class LocalFilesBackendFile implements DocumentationBackendFile {
+export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFilesBackendFile> {
     nextId: number = 0
     markdownEntriesByLineOrSymbol: Map<number | string, FileMarkdownEntry> = new Map();
 
-    constructor(public parentWorkspace: LocalFilesBackendWorkspace, public fileUri: string, public listener: (_: DocEvent) => void) {}
+    constructor(public parentWorkspace: LocalFilesBackendWorkspace, public fileUri: string, public listener: (_: LocalFilesBackendFile, _e: DocEvent) => void) {}
 
     async requestJumpTo(docId: number): Promise<BackendStatus> {
         return BackendStatus.Unsupported;
     }
+
     async requestEdit(docId: number, markdown: string): Promise<BackendStatus> {
         return BackendStatus.Unsupported;
     }
+
+    async requestDelete(docId: number): Promise<BackendStatus> {
+        return BackendStatus.Unsupported;
+    }
+
     async requestCreate(docId: number, markdown: string): Promise<BackendStatus | { docId: number; }> {
         return BackendStatus.Unsupported;
     }
@@ -133,13 +139,13 @@ export class LocalFilesBackendFile implements DocumentationBackendFile {
             const id = this.nextId++;
             const newEntry = {docId: id, lineOrSymbol: lineOrSymbol, markdown: markdown};
             this.markdownEntriesByLineOrSymbol.set(lineOrSymbol, newEntry);
-            this.listener({
+            this.listener(this, {
                 type: DocEventType.Add,
                 ...newEntry
             });
         } else {
             entry["markdown"] = markdown;
-            this.listener({
+            this.listener(this, {
                 type: DocEventType.Change,
                 ...entry
             });
@@ -183,7 +189,7 @@ class LocalMarkdownFile {
 
         // Indexing should be fast and May contain false positives.
 
-        let linePosition = 0;
+        let docPosition = 0;
         let linkDestinationBytes: number[] = [];
         let linkDestination: string = "";
         let documentationContentsBytes: number[] = [];
@@ -207,11 +213,11 @@ class LocalMarkdownFile {
                         // we are after two newlines in a row: this was a successful parse.
                         try {
                             documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                            linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, linePosition));
+                            linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, docPosition));
                         } catch (e) {}
                     }
                     // new line
-                    linePosition = i;
+                    docPosition = i;
                     linkDestinationBytes = [];
                     documentationContentsBytes = [];
                     matchState = 0;
@@ -224,11 +230,11 @@ class LocalMarkdownFile {
                     // rather than two lines in a row, there is new line with a title interrupting us
                     try {
                         documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                        linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, linePosition));
+                        linkReferences.push(new LocalMarkdownReference(linkDestination, documentationContents, docPosition));
                     } catch (e) {}
 
                     // also, a new line just started
-                    linePosition = i - 1;
+                    docPosition = i - 1;
                     linkDestinationBytes = [];
                     documentationContentsBytes = [];
                     matchState = 1;
@@ -273,5 +279,5 @@ class LocalMarkdownFile {
 }
 
 class LocalMarkdownReference {
-    constructor(public linkDestination: string, public documentationContents: string, public linePosition: number) {}
+    constructor(public linkDestination: string, public documentationContents: string, public docPosition: number) {}
 }

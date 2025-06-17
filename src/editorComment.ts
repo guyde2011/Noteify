@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { SessionFrontendRequestHandle } from "./backends/Session";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 
@@ -11,6 +12,7 @@ export function initComments() {
 export class CommentDoc implements vscode.Comment {
     constructor(
 	    public markdown: string,
+        public requestHandle: SessionFrontendRequestHandle,
         public mode: vscode.CommentMode = vscode.CommentMode.Preview,
         public author: vscode.CommentAuthorInformation = { name: "Researcher" },
         public parents: vscode.CommentThread[] = [],
@@ -31,8 +33,15 @@ export class CommentDoc implements vscode.Comment {
         return "(From noteify)";
     }
 
-    isEditable(): boolean {
-        return false;
+    get contextValue(): string {
+        let flags = "-";
+        if (this.requestHandle.backendProperties.featureFlags.editDoc) {
+            flags += "e";
+        }
+        if (this.requestHandle.backendProperties.featureFlags.deleteDoc) {
+            flags += "d";
+        }
+        return flags;
     }
 }
 

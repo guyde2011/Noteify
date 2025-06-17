@@ -1,17 +1,28 @@
 import getAllBackends from './allBackends';
-import { BackendStatusToString, DocEvent, DocEventType, DocumentationBackend, DocumentationBackendFile, DocumentationBackendWorkspace } from './interface';
+import { BackendStatus, BackendStatusToString, DocEvent, DocEventType, DocumentationBackend, DocumentationBackendFile, DocumentationBackendWorkspace } from './interface';
 import * as vscode from "vscode";
 
 /**
  * Interface the frontend provides to the session to be notified about new documentation objects.
  */
 export interface SessionFrontend<SessionFrontendDoc> {
-    addDoc(textDocument: vscode.TextDocument, lineOrSymbol: number | string, markdown: string): SessionFrontendDoc;
+    addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): SessionFrontendDoc;
     delDoc(doc: SessionFrontendDoc): void;
     changeDoc(doc: SessionFrontendDoc, markdown: string): void;
 }
 
-export default class Session<FrontendComment, Frontend extends SessionFrontend<FrontendComment>> {
+/**
+ * proxy object giving access to DocumentationBackendFile's request methods for a specific doc, excluding access to create.
+ */
+export class SessionFrontendRequestHandle {
+    constructor(public backendFile: DocumentationBackendFile, public docId: number) {}
+    get backendProperties() { return this.backendFile.parentWorkspace.properties; }
+    jumpTo(): Promise<BackendStatus> { return this.backendFile.requestJumpTo(this.docId); }
+    edit(markdown: string): Promise<BackendStatus> { return this.backendFile.requestEdit(this.docId, markdown); }
+    delete(): Promise<BackendStatus> { return this.backendFile.requestDelete(this.docId); }
+}
+
+export class Session<FrontendComment, Frontend extends SessionFrontend<FrontendComment>> {
     openBackendWorkspaces: Array<DocumentationBackendWorkspace>;
     backendsWorkspacesOpen: Array<boolean>;
     allBackends: Array<DocumentationBackend>;
@@ -58,8 +69,8 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
             this.fileBackends.set(textDocument, sessionFile);
 
             // asynchronously add every existing backend to this file
-            for (let worskpaceBackend of this.openBackendWorkspaces) {
-                sessionFile.openFor(worskpaceBackend);
+            for (let i = 0; i < this.openBackendWorkspaces.length; i++) {
+                sessionFile.openFor(this.openBackendWorkspaces[i], i);
             }
         });
         this.listenerSubscriptions.push(ev);
@@ -74,16 +85,14 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
         this.listenerSubscriptions.push(ev);
     }
 
-    onDocEvent(textDocument: vscode.TextDocument, workspaceBackend: DocumentationBackendWorkspace, docEvent: DocEvent): void {
+    onDocEvent(textDocument: vscode.TextDocument, backendIndex: number, backendFile: DocumentationBackendFile, docEvent: DocEvent): void {
         console.log(`Got event: ${docEvent.type} for ${textDocument.uri}`);
-        let backendIndex = this.openBackendWorkspaces.indexOf(workspaceBackend);
-        console.assert(backendIndex != -1);
 
         switch (docEvent.type) {
             case DocEventType.Add: {
                 const docId = docEvent.docId;
                 const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
-                const newComment = this.frontend.addDoc(textDocument, docEvent.lineOrSymbol, docEvent.markdown);
+                const newComment = this.frontend.addDoc(textDocument, new SessionFrontendRequestHandle(backendFile, docId), docEvent.lineOrSymbol, docEvent.markdown);
                 console.assert(!this.frontendComments.has(key));
                 this.frontendComments.set(key, newComment);
                 break;
@@ -152,12 +161,13 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
                     console.log(`open for backend ${backend.name} failed with status code ${BackendStatusToString(newWorkspaceBackend)}`);
                 } else {
                     console.log(`successfuly opened backend ${backend.name}`);
+                    const backendIndex = this.openBackendWorkspaces.length;
                     this.openBackendWorkspaces.push(newWorkspaceBackend);
                     this.backendsWorkspacesOpen[i] = true;
 
                     // asynchronously add this backend to every file
                     this.fileBackends.forEach((sessionFile, _textDocument, _map) => {
-                        sessionFile.openFor(newWorkspaceBackend);
+                        sessionFile.openFor(newWorkspaceBackend, backendIndex);
                     })
                 }
             });
@@ -199,17 +209,17 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
 }
 
 export class SessionFile {
-    backendFiles: Array<DocumentationBackendFile> = [];
+    backendFiles: Array<DocumentationBackendFile<any>> = [];
     isClosed: boolean = false;
     constructor(
         public textDocument: vscode.TextDocument,
-        public onDocEvent: (textDoc: vscode.TextDocument, workspaceBackend: DocumentationBackendWorkspace, docEvent: DocEvent) => void,
+        public onDocEvent: (textDoc: vscode.TextDocument, backendIndex: number, backendFile: DocumentationBackendFile<any>, docEvent: DocEvent) => void,
     )
     {}
 
-    openFor(workspaceBackend: DocumentationBackendWorkspace): void {
+    openFor(workspaceBackend: DocumentationBackendWorkspace<any>, backendIndex: number): void {
         console.log(`Opening ${this.textDocument.uri} for backend ${workspaceBackend}`)
-        const listener = this.onDocEvent.bind(null, this.textDocument, workspaceBackend);
+        const listener = this.onDocEvent.bind(null, this.textDocument, backendIndex);
         workspaceBackend.openFile(this.textDocument.uri.toString(), listener).then(backendFile => {
             if (this.isClosed) {
                 console.log("Lost the race: file got closed before its backend got created.");

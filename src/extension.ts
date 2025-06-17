@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { initComments, CommentDoc, symbolCommentController } from './editorComment';
-import Session from './backends/Session';
+import { Session, SessionFrontendRequestHandle } from './backends/Session';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -8,7 +8,7 @@ export function activate(context: vscode.ExtensionContext) {
 	initComments();
 
 	const session = new Session({
-		addDoc(textDocument: vscode.TextDocument, lineOrSymbol: number | string, markdown: string): vscode.CommentThread | null {
+		addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): vscode.CommentThread | null {
 			console.log(`addDoc ${lineOrSymbol} ${markdown}`);
 
 			if (typeof lineOrSymbol !== "number") {
@@ -23,12 +23,12 @@ export function activate(context: vscode.ExtensionContext) {
 				return null;
 			}
 
-			if (textDocument.uri.scheme == "comment") {
+			if (textDocument.uri.scheme === "comment") {
 				// don't want to create comments for comments
 				return null;
 			}
 
-			const comment = new CommentDoc(markdown);
+			const comment = new CommentDoc(markdown, requestHandle);
 			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineIndex).range, [comment]);
 			thread.canReply = false;
 			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
