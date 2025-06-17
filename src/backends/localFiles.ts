@@ -152,7 +152,22 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
         }
     }
 
+    removeMarkdown(lineOrSymbol: number | string) {
+        const entry = this.markdownEntriesByLineOrSymbol.get(lineOrSymbol);
+        if (entry !== undefined) {
+            this.listener(this, {
+                type: DocEventType.Delete,
+                docId: entry.docId
+            });
+
+            // this is safe, apparently, even when iterating
+            this.markdownEntriesByLineOrSymbol.delete(lineOrSymbol);
+        }
+    }
+
     incRefresh(linkReferences: LocalMarkdownReference[]) {
+        let newSymbolSet: Set<number | string> = new Set();
+
         for (let linkRef of linkReferences) {
             if (linkRef.linkDestination.startsWith(this.fileUri)) {
                 // the link points to here!
@@ -169,10 +184,18 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
                 }
 
                 if (maybeLineOrSymbol !== undefined) {
+                    newSymbolSet.add(maybeLineOrSymbol);
                     this.assignMarkdown(maybeLineOrSymbol, linkRef.documentationContents);
                 }
             }
         }
+
+        // delete symbols not in newSymbolSet
+        this.markdownEntriesByLineOrSymbol.forEach((_value, lineOrSymbol) => {
+            if (!newSymbolSet.has(lineOrSymbol)) {
+                this.removeMarkdown(lineOrSymbol);
+            }
+        })
     }
 
     close(): void {
@@ -199,17 +222,17 @@ class LocalMarkdownFile {
         // 7: newlines before documentation contents. 8: documentation contents. 9: a single newline in the documentation contents - may return to 8, or leave due to an extra newline or a #.
         let matchState = 0;
 
-        for (let i = 0; i <= bytes.length; i++) {
+        for (let i = 0; i < bytes.length + 2; i++) {
             const b = i < bytes.length ? bytes[i] : "\n".charCodeAt(0);
 
-            if (b == "\n".charCodeAt(0)) {
-                if (matchState == 6 || matchState == 7) {
+            if (b === "\n".charCodeAt(0)) {
+                if (matchState === 6 || matchState === 7) {
                     matchState = 7;
-                } else if (matchState == 8) {
+                } else if (matchState === 8) {
                     documentationContentsBytes.push(b);
                     matchState = 9;
                 } else {
-                    if (matchState == 9) {
+                    if (matchState === 9) {
                         // we are after two newlines in a row: this was a successful parse.
                         try {
                             documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
@@ -222,11 +245,11 @@ class LocalMarkdownFile {
                     documentationContentsBytes = [];
                     matchState = 0;
                 }
-            } else if ((matchState == 0 || matchState == 1 || matchState == 9) && b == "#".charCodeAt(0)) {
-                if (matchState == 0 || matchState == 1) {
+            } else if ((matchState === 0 || matchState === 1 || matchState === 9) && b === "#".charCodeAt(0)) {
+                if (matchState === 0 || matchState === 1) {
                     // hashtags put us into title mode
                     matchState = 1
-                } else if (matchState == 9) {
+                } else if (matchState === 9) {
                     // rather than two lines in a row, there is new line with a title interrupting us
                     try {
                         documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
@@ -239,20 +262,20 @@ class LocalMarkdownFile {
                     documentationContentsBytes = [];
                     matchState = 1;
                 }
-            } else if ((matchState == 1 || matchState == 2) && b == " ".charCodeAt(0)) {
+            } else if ((matchState === 1 || matchState === 2) && b === " ".charCodeAt(0)) {
                 // spaces put us into padding mode
                 matchState = 2;
-            } else if ((matchState == 1 || matchState == 2) && b == "[".charCodeAt(0)) {
+            } else if ((matchState === 1 || matchState === 2) && b === "[".charCodeAt(0)) {
                 // [ puts us into square brackets mode
                 matchState = 3;
-            } else if (matchState == 3) {
-                if (b == "]".charCodeAt(0)) {
+            } else if (matchState === 3) {
+                if (b === "]".charCodeAt(0)) {
                     matchState = 4;
                 }
-            } else if (matchState == 4 && b == "(".charCodeAt(0)) {
+            } else if (matchState === 4 && b === "(".charCodeAt(0)) {
                 matchState = 5;
-            } else if (matchState == 5) {
-                if (b == ")".charCodeAt(0)) {
+            } else if (matchState === 5) {
+                if (b === ")".charCodeAt(0)) {
                     matchState = 6;
                     try {
                         linkDestination = new TextDecoder("utf-8").decode(new Uint8Array(linkDestinationBytes));
@@ -262,9 +285,9 @@ class LocalMarkdownFile {
                 } else {
                     linkDestinationBytes.push(b);
                 }
-            } else if (matchState == 6) {
+            } else if (matchState === 6) {
                 // do nothing. we don't care until the next line.
-            } else if (matchState == 7 || matchState == 8 || matchState == 9) {
+            } else if (matchState === 7 || matchState === 8 || matchState === 9) {
                 // documentation contents
                 documentationContentsBytes.push(b);
                 matchState = 8;
