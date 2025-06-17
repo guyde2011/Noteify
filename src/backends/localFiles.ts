@@ -106,9 +106,9 @@ export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace
 }
 
 interface FileMarkdownEntry {
-    "docId": number;
-    "lineOrSymbol": number | string;
-    "markdown": string;
+    docId: number;
+    lineOrSymbol: number | string;
+    markdown: string;
 };
 
 export class LocalFilesBackendFile implements DocumentationBackendFile {
@@ -123,7 +123,7 @@ export class LocalFilesBackendFile implements DocumentationBackendFile {
     async requestEdit(docId: number, markdown: string): Promise<BackendStatus> {
         return BackendStatus.Unsupported;
     }
-    async requestCreate(docId: number, markdown: string): Promise<BackendStatus | { "docId": number; }> {
+    async requestCreate(docId: number, markdown: string): Promise<BackendStatus | { docId: number; }> {
         return BackendStatus.Unsupported;
     }
 
@@ -131,16 +131,16 @@ export class LocalFilesBackendFile implements DocumentationBackendFile {
         const entry = this.markdownEntriesByLineOrSymbol.get(lineOrSymbol);
         if (entry === undefined) {
             const id = this.nextId++;
-            const newEntry = {"docId": id, "lineOrSymbol": lineOrSymbol, "markdown": markdown};
+            const newEntry = {docId: id, lineOrSymbol: lineOrSymbol, markdown: markdown};
             this.markdownEntriesByLineOrSymbol.set(lineOrSymbol, newEntry);
             this.listener({
-                "type": DocEventType.Add,
+                type: DocEventType.Add,
                 ...newEntry
             });
         } else {
             entry["markdown"] = markdown;
             this.listener({
-                "type": DocEventType.Change,
+                type: DocEventType.Change,
                 ...entry
             });
         }
@@ -153,7 +153,6 @@ export class LocalFilesBackendFile implements DocumentationBackendFile {
                 const parsedUri = vscode.Uri.parse(linkRef.linkDestination);
                 const shouldBeLineOrSymbol = parsedUri.fragment;
                 let maybeLineOrSymbol: string | number | undefined = undefined;
-                console.log(`Should be is ${shouldBeLineOrSymbol}`)
 
                 if (/^\d/.test(shouldBeLineOrSymbol)) {
                     const line = Number.parseInt(shouldBeLineOrSymbol);

@@ -109,7 +109,7 @@ export interface DocumentationBackendFile {
     /**
      * @returns either a backend status, or the document ID wrapped under a small object because BackendStatus is a number too.
      */
-    requestCreate(docId: number, markdown: string): Promise<BackendStatus | {"docId": number}>;
+    requestCreate(docId: number, markdown: string): Promise<BackendStatus | {docId: number}>;
 
     /**
      * Must complete synchronously, because the file may be reopened immediately after calling dispose().
