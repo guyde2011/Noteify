@@ -96,6 +96,10 @@ export function activate(context: vscode.ExtensionContext) {
 		*/
 	});
 
+	vscode.commands.registerCommand('noteify.jumpTo', (comment: vscode.Comment) => {
+		vscode.window.showInformationMessage("Unsupported");
+	});
+
 	vscode.commands.registerCommand('noteify.saveNote', (comment: vscode.Comment) => {
 		vscode.window.showInformationMessage("Unsupported");
 		/*

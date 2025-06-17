@@ -35,6 +35,9 @@ export class CommentDoc implements vscode.Comment {
 
     get contextValue(): string {
         let flags = "-";
+        if (this.requestHandle.backendProperties.featureFlags.jumpTo) {
+            flags += "j";
+        }
         if (this.requestHandle.backendProperties.featureFlags.editDoc) {
             flags += "e";
         }
