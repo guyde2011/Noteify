@@ -1,24 +1,8 @@
 import * as vscode from 'vscode';
 import { symbolDocManager } from './symbolDoc';
-import { initComments, makeComments, ResearchComment, symbolCommentController, symbolCommentManager } from './editorComment';
+import { initComments, CommentDoc, symbolCommentController } from './editorComment';
 import { docManager } from './backends/localFiles';
 import Session from './backends/Session';
-
-class MishaComment implements vscode.Comment {
-    constructor(
-	    public markdown: string,
-        public mode: vscode.CommentMode = vscode.CommentMode.Preview,
-        public author: vscode.CommentAuthorInformation = { name: "Researcher" },
-        public parents: vscode.CommentThread[] = [],
-    ) {};
-
-    get body(): vscode.MarkdownString {
-        return new vscode.MarkdownString(this.markdown);
-    }
-    isEditable(): boolean {
-        return false;
-    }
-}
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -44,8 +28,10 @@ export function activate(context: vscode.ExtensionContext) {
 				return null;
 			}
 
-			const comment = new MishaComment(markdown);
+			const comment = new CommentDoc(markdown);
 			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineOrSymbol).range, [comment]);
+			thread.canReply = false;
+			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
 			return thread;
 		},
 		delDoc(textDocument: vscode.TextDocument, comment: vscode.CommentThread | null): void {
@@ -68,19 +54,27 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(loadDocs);
 
 	vscode.commands.registerCommand('noteify.deleteThread', (thread: vscode.CommentThread) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		thread.dispose();
+		*/
 	});
 
-	vscode.commands.registerCommand('noteify.deleteNote', (comment: ResearchComment) => {
+	vscode.commands.registerCommand('noteify.deleteNote', (comment: vscode.Comment) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		for (const parent of comment.parents) {
 			parent.comments = parent.comments.filter(cmt => (cmt as ResearchComment).id !== comment.id);
 			if (parent.comments.length === 0) {
 				parent.dispose();
 			}
 		}
+		*/
 	});
 
-	vscode.commands.registerCommand('noteify.editNote', (comment: ResearchComment) => {
+	vscode.commands.registerCommand('noteify.editNote', (comment: vscode.Comment) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		for (const parent of comment.parents) {
 			parent.comments = parent.comments.map(child => {
 				if ((child as ResearchComment).id === comment.id) {
@@ -90,14 +84,20 @@ export function activate(context: vscode.ExtensionContext) {
 				return child;
 			});
 		}
+		*/
 	});
 
-	vscode.commands.registerCommand('noteify.saveNote', (comment: ResearchComment) => {
+	vscode.commands.registerCommand('noteify.saveNote', (comment: vscode.Comment) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		comment.mode = vscode.CommentMode.Preview;
 		comment.onUserEdit();
+		*/
 	});
 
 	vscode.commands.registerCommand('noteify.addSymbolDoc', () => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			return;
@@ -126,6 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			}
 		);
+		*/
 	});
 
 }

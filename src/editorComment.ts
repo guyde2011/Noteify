@@ -1,4 +1,42 @@
 import * as vscode from "vscode";
+
+export var symbolCommentController: vscode.CommentController | null = null;
+
+export function initComments() {
+    if (symbolCommentController === null) {
+        symbolCommentController = vscode.comments.createCommentController('noteify-comments', "Research Docs");
+    }
+}
+
+export class CommentDoc implements vscode.Comment {
+    constructor(
+	    public markdown: string,
+        public mode: vscode.CommentMode = vscode.CommentMode.Preview,
+        public author: vscode.CommentAuthorInformation = { name: "Researcher" },
+        public parents: vscode.CommentThread[] = [],
+    ) {};
+
+    get body(): vscode.MarkdownString {
+        return new vscode.MarkdownString(this.markdown);
+    }
+
+    set body(content: string | vscode.MarkdownString) {
+        if (content instanceof vscode.MarkdownString) {
+            content = content.value;
+        }
+        this.markdown = content;
+    }
+
+    get label(): string {
+        return "(From noteify)";
+    }
+
+    isEditable(): boolean {
+        return false;
+    }
+}
+
+/*
 import { LinkedDoc, SymbolDoc } from "./symbolDoc";
 
 export var symbolCommentController: vscode.CommentController | null = null;
@@ -104,12 +142,6 @@ export class SymbolCommentManager extends CommentsManager<SymbolDoc, SymbolComme
 
 export var symbolCommentManager = new SymbolCommentManager();
 
-export function initComments() {
-    if (symbolCommentController === null) {
-        symbolCommentController = vscode.comments.createCommentController('noteify-comments', "Research Docs");
-    }
-}
-
 export async function makeComments(docs: SymbolDoc[]) {
     for (const doc of docs) {
         const wsSymbols: vscode.SymbolInformation[] =
@@ -123,3 +155,4 @@ export async function makeComments(docs: SymbolDoc[]) {
         }
     }
 }
+*/
