@@ -87,7 +87,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
         switch (docEvent.type) {
             case DocEventType.Add: {
                 const docId = docEvent.docId;
-                const key = `${backendIndex}.${docId}`;
+                const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
                 const newComment = this.frontend.addDoc(textDocument, docEvent.lineOrSymbol, docEvent.markdown);
                 console.assert(!this.frontendComments.has(key));
                 this.frontendComments.set(key, newComment);
@@ -95,7 +95,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
             }
             case DocEventType.Delete: {
                 const docId = docEvent.docId;
-                const key = `${backendIndex}.${docId}`;
+                const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
                 const deletedComment = this.frontendComments.get(key);
                 if (deletedComment !== undefined) {
                     this.frontend.delDoc(textDocument, deletedComment);
@@ -107,7 +107,7 @@ export default class Session<FrontendComment, Frontend extends SessionFrontend<F
             }
             case DocEventType.Change: {
                 const docId = docEvent.docId;
-                const key = `${backendIndex}.${docId}`;
+                const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
                 const changedComment = this.frontendComments.get(key);
                 if (changedComment !== undefined) {
                     this.frontend.changeDoc(textDocument, changedComment, docEvent.markdown);

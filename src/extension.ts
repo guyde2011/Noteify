@@ -31,6 +31,10 @@ export function activate(context: vscode.ExtensionContext) {
 			if (typeof lineOrSymbol !== "number")
 				throw "aaaaa";
 
+			if (lineOrSymbol >= textDocument.lineCount) {
+				// resiliency
+				lineOrSymbol = 0;
+			}
 			const comment = new MishaComment(markdown);
 			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineOrSymbol).range, [comment]);
 			return thread;
