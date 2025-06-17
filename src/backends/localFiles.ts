@@ -109,7 +109,7 @@ interface FileMarkdownEntry {
     docId: number;
     lineOrSymbol: number | string;
     markdown: string;
-    sourceFilePosition: number;
+    sourceLineNumber: number;
     sourceFileUri: Uri;
 };
 
@@ -124,7 +124,8 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
         const entry = this.markdownEntriesById.get(docId);
 
         if (entry !== undefined) {
-            vscode.window.showTextDocument(entry.sourceFileUri/*, { range: new vscode.Range(position, position) }*/);
+            const position = new vscode.Position(entry.sourceLineNumber, 0);
+            vscode.window.showTextDocument(entry.sourceFileUri, { selection: new vscode.Range(position, position) });
             return BackendStatus.Success;
         } else {
             return BackendStatus.NotFound;
@@ -143,11 +144,11 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
         return BackendStatus.Unsupported;
     }
 
-    assignMarkdown(lineOrSymbol: number | string, markdown: string, sourceFilePosition: number, sourceFileUri: Uri) {
+    assignMarkdown(lineOrSymbol: number | string, markdown: string, sourceLineNumber: number, sourceFileUri: Uri) {
         const entry = this.markdownEntriesByLineOrSymbol.get(lineOrSymbol);
         if (entry === undefined) {
             const docId = this.nextId++;
-            const newEntry = {docId, lineOrSymbol, markdown, sourceFilePosition, sourceFileUri};
+            const newEntry = {docId, lineOrSymbol, markdown, sourceLineNumber, sourceFileUri};
             this.markdownEntriesByLineOrSymbol.set(lineOrSymbol, newEntry);
             this.markdownEntriesById.set(docId, newEntry);
             this.listener(this, {
@@ -155,7 +156,11 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
                 ...newEntry
             });
         } else {
-            entry["markdown"] = markdown;
+            // don't forget to assign new fields here too!
+            entry.markdown = markdown;
+            entry.sourceLineNumber = sourceLineNumber;
+            entry.sourceFileUri = sourceFileUri;
+
             this.listener(this, {
                 type: DocEventType.Change,
                 ...entry
@@ -197,7 +202,7 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
 
                 if (maybeLineOrSymbol !== undefined) {
                     newSymbolSet.add(maybeLineOrSymbol);
-                    this.assignMarkdown(maybeLineOrSymbol, linkRef.documentationContents, linkRef.docPosition, linkRef.markdownFile.uri);
+                    this.assignMarkdown(maybeLineOrSymbol, linkRef.documentationContents, linkRef.lineNumber, linkRef.markdownFile.uri);
                 }
             }
         }
@@ -224,8 +229,8 @@ class LocalMarkdownFile {
         const result = new LocalMarkdownFile(uri, linkReferences);
 
         // Indexing should be fast and May contain false positives.
-
-        let docPosition = 0;
+        let lineNumber = 0;
+        let matchLineNumber = 0;
         let linkDestinationBytes: number[] = [];
         let linkDestination: string = "";
         let documentationContentsBytes: number[] = [];
@@ -249,15 +254,17 @@ class LocalMarkdownFile {
                         // we are after two newlines in a row: this was a successful parse.
                         try {
                             documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                            linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, docPosition));
+                            linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, matchLineNumber));
                         } catch (e) {}
                     }
-                    // new line
-                    docPosition = i;
+                    // new line, after which starts the match
+                    matchLineNumber = lineNumber + 1;
                     linkDestinationBytes = [];
                     documentationContentsBytes = [];
                     matchState = 0;
                 }
+                // regardless...
+                lineNumber++;
             } else if ((matchState === 0 || matchState === 1 || matchState === 9) && b === "#".charCodeAt(0)) {
                 if (matchState === 0 || matchState === 1) {
                     // hashtags put us into title mode
@@ -266,11 +273,11 @@ class LocalMarkdownFile {
                     // rather than two lines in a row, there is new line with a title interrupting us
                     try {
                         documentationContents = new TextDecoder("utf-8").decode(new Uint8Array(documentationContentsBytes));
-                        linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, docPosition));
+                        linkReferences.push(new LocalMarkdownReference(result, linkDestination, documentationContents, matchLineNumber));
                     } catch (e) {}
 
-                    // also, a new line just started
-                    docPosition = i - 1;
+                    // also, a new match just started
+                    matchLineNumber = lineNumber;
                     linkDestinationBytes = [];
                     documentationContentsBytes = [];
                     matchState = 1;
@@ -315,5 +322,5 @@ class LocalMarkdownFile {
 }
 
 class LocalMarkdownReference {
-    constructor(public markdownFile: LocalMarkdownFile, public linkDestination: string, public documentationContents: string, public docPosition: number) {}
+    constructor(public markdownFile: LocalMarkdownFile, public linkDestination: string, public documentationContents: string, public lineNumber: number) {}
 }
