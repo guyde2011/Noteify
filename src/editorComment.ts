@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { LinkedDoc, SymbolDoc } from "./symbolDoc";
-import { searchLSPSymbol, searchTSSymbol } from "./parsing/symbol";
+import { lspProvider, LSPSymbolProvider, SymbolData, tsProvider, TSSymbolProvider } from "./parsing/symbol";
+import { fileParser } from "./parsing/parsing";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 var lastCommentId = 0;
@@ -111,17 +112,34 @@ export function initComments() {
     }
 }
 
-export async function makeComments(docs: SymbolDoc[]) {
+export async function showSymbolDocs(docs: SymbolDoc[]) {
     for (const doc of docs) {
         const searchQuery = { name: doc.symbol };
-        let symbols = await searchLSPSymbol(searchQuery);
-        const tsSymbols = await searchTSSymbol(searchQuery);
+        const lspSymbols = await lspProvider.searchSymbol(searchQuery);
+        const tsSymbols = await tsProvider.searchSymbol(searchQuery);
+        // We sort all symbols, and then try to add each of them, unless they have an intersection with an existing one.
+        const allSymbols = Array.from(lspSymbols);
+        allSymbols.concat(tsSymbols);
 
-        // Makes sure we don't add symbols with ranges that already intersect a previously added symbol.
-        // TODO: maybe sort the symbols for faster implementation of this!
-        for (const symbol of tsSymbols)  {
+        const compareSymbols = (lhs: SymbolData, rhs: SymbolData) => {
+            const uriComp = lhs.uri.fsPath.localeCompare(rhs.uri.fsPath);
+            if (uriComp !== 0) { return uriComp; }
+            const lineComp = lhs.range.start.line - rhs.range.start.line;
+            if (lineComp !== 0) { return lineComp; }
+            return lhs.range.start.character - rhs.range.start.character;
+        };
+
+        allSymbols.sort(compareSymbols);
+
+        const symbols = [];
+        for (const symbol of allSymbols) {
             let isUnique = true;
-            for (const existingSymbol of symbols) {
+            for (let i = symbols.length - 1; i >= 0; i--) {
+                const existingSymbol = symbols[i];
+                if (symbol.uri !== existingSymbol.uri || symbol.range.start.line > existingSymbol.range.end.line) {
+                    // We assume here symbols are a single line. thus endLine == startLine for symbols
+                    break;
+                }
                 if (symbol.range.intersection(existingSymbol.range)) {
                     // There's an intersection
                     isUnique = false;

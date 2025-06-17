@@ -33,6 +33,7 @@ export class LangApi {
 
     constructor(
         public readonly language: Language,
+        public readonly fileExtensions: string[],
         symbolQueries: string[]
     ) {
         this.parser = new Parser();
@@ -46,9 +47,8 @@ export class LangApi {
 
 }
 
-// TODO: move to files, and embed in compilation process
 namespace SymbolQueries {
-    export const CPP_QUERIES = [
+    export const CPP = [
         "(qualified_identifier scope: (_) @scope) @root",
         "(namespace_definition name: (namespace_identifier) @name @scope) @root",
         "(class_specifier name: (type_identifier) @name @scope) @root",
@@ -64,6 +64,23 @@ namespace SymbolQueries {
     ];
 }
 
+namespace FileExtensions {
+    export const CPP = [".cpp", ".cc", ".hh", ".c++", ".cxx", ".hxx", ".hpp", ".h++", ".h"];
+}
+
 export namespace Languages {
-    export const CPP = new LangApi(Cpp as Language, SymbolQueries.CPP_QUERIES);
+    export const ALL_LANGUAGES: LangApi[] = [];
+
+    function createApi(
+        language: Language,
+        fileExtensions: string[],
+        symbolQueries: string[]
+    ): LangApi {
+        const api = new LangApi(language, fileExtensions, symbolQueries);
+        ALL_LANGUAGES.push(api);
+        return api;
+    }
+
+
+    export const CPP = createApi(Cpp as Language, FileExtensions.CPP, SymbolQueries.CPP);
 }

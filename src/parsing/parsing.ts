@@ -1,18 +1,16 @@
 import { Query, SyntaxNode, Tree } from "tree-sitter";
 import Parser = require("tree-sitter");
-import { LangApi, Language, Languages } from "./language";
+import { LangApi, Language, Languages } from "./treeSitter";
 import { Position, Range } from "vscode";
 import { readFile } from "../utils";
 
 export type SourceFile = string;
 
-export class ParsedFile {
-    constructor(
-        public readonly filePath: SourceFile,
-        public readonly contents: string,
-        public readonly tree: Tree,
-        public readonly api: LangApi
-    ) { }
+export type ParsedFile = {
+    readonly filePath: SourceFile
+    readonly contents: string
+    readonly tree: Tree
+    readonly api: LangApi
 };
 
 export class FileParser {
@@ -46,7 +44,12 @@ export class FileParser {
 
         // Get a tree
         const tree = langApi.parse(contents);
-        const parsedFile = new ParsedFile(file, contents, tree, langApi);
+        const parsedFile = {
+            filePath: file,
+            contents: contents,
+            tree: tree,
+            api: langApi
+        };
 
         // Save in cache
         this.loadedFiles.set(file, parsedFile);
@@ -55,13 +58,14 @@ export class FileParser {
     }
 }
 
-const CPP_SUFFIXES = [".cpp", ".cc", ".hh", ".c++", ".cxx", ".hxx", ".hpp", ".h++", ".h"];
 
 export function getApiForFile(file: SourceFile): LangApi | undefined {
     // TODO: Make this generic for different languages, and not hardcoded.
-    for (const cppSuffix of CPP_SUFFIXES) {
-        if (file.endsWith(cppSuffix)) {
-            return Languages.CPP;
+    for (const language of Languages.ALL_LANGUAGES) {
+        for (const extension of language.fileExtensions) {
+            if (file.endsWith(extension)) {
+                return language;
+            }
         }
     }
 }
@@ -79,6 +83,12 @@ export function getNodeRange(node: SyntaxNode): Range {
     );
 }
 
+/**
+ * Finds the smallest node that contains the given span within the source.
+ * @param range A range within the ast
+ * @param tree the AST
+ * @returns the minimal node containing the range.
+ */
 export function findMinimalContainingNode(range: Range, tree: Tree): SyntaxNode {
     let curNode = tree.rootNode;
     while (true) {

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { symbolDocManager } from './symbolDoc';
-import { initComments, makeComments, ResearchComment, symbolCommentManager } from './editorComment';
+import { initComments, showSymbolDocs, ResearchComment, symbolCommentManager } from './editorComment';
 import { docManager } from './markdown';
 import { fileParser } from './parsing/parsing';
-import { extractLSPSymbol, extractTSSymbol } from './parsing/symbol';
+import { lspProvider, tsProvider } from './parsing/symbol';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 			for (const file of files) {
 				docManager.indexFile(file).then(() => {
 					const docs = symbolDocManager.updateDocs(file);
-					makeComments(docs);
+					showSymbolDocs(docs);
 				});
 			}
 		});
@@ -61,21 +61,16 @@ export function activate(context: vscode.ExtensionContext) {
 		const selectionPoint = new vscode.Range(selection, selection);
 		const docUri = editor.document.uri;
 
-		const parsedFile = fileParser.parseFile(docUri.fsPath, editor.document.getText());
-		extractLSPSymbol(docUri, selectionPoint).then((symbol) => {
+		lspProvider.extractSymbol(docUri, selectionPoint).then((symbol) => {
 			// If we managed to find a symbol using the LSP
 			if (symbol) {
-				// Do we have tree-sitter support for this language? If we do prefer its results.
-				if (parsedFile) {
-					// Use the range given by the lsp rather than the selection range.
-					return extractTSSymbol(parsedFile, symbol.range);
-				}
-				return symbol;
-			} else if (parsedFile) {
+				// Use the range given by the lsp rather than the selection range if it exists.
+				const tsSymbol = tsProvider.extractSymbol(docUri, symbol.range);
+				return tsSymbol.then((sym) => sym || symbol);
+			} else {
 				// If we have tree-sitter support, use it.
-				return extractTSSymbol(parsedFile, selectionPoint);
+				return tsProvider.extractSymbol(docUri, selectionPoint);
 			}
-			// No way to location the symbol, `undefined` is returned
 		}).then((symbol) => {
 			if (!symbol) {
 				// If we couldn't find a symbol, do nothing
