@@ -20,7 +20,7 @@ export class LocalFilesBackend implements DocumentationBackend {
 export class LocalFilesBackendWorkspace implements DocumentationBackendWorkspace {
     // mandatory for backend workspaces
     workspaceUri: string;
-    properties = { featureFlags: { jumpTo: true, editDoc: true, deleteDoc: false, createDoc: false }, viaName: "Noteify via local files" };
+    properties = { featureFlags: { jumpTo: true, editDoc: true, deleteDoc: false, createDoc: true }, viaName: "Noteify via local files" };
 
     // implementation of local files backend
     listenerSubscriptions: {dispose(): any;}[] = [];
@@ -208,8 +208,12 @@ export class LocalFilesBackendFile implements DocumentationBackendFile<LocalFile
         return BackendStatus.Unsupported;
     }
 
-    async requestCreate(docId: number, markdown: string): Promise<BackendStatus | { docId: number; }> {
-        return BackendStatus.Unsupported;
+    async requestCreate(lineOrSymbol: number | string, markdown: string): Promise<BackendStatus | { docId: number; }> {
+        const docId = this.nextId++;
+        const newEntry = {docId, lineOrSymbol, markdown, sourceLineNumber: 0, sourceFileUri: vscode.Uri.parse("file:///")};
+        this.markdownEntriesByLineOrSymbol.set(lineOrSymbol, newEntry);
+        this.markdownEntriesById.set(docId, newEntry);
+        return {"docId": docId};
     }
 
     assignMarkdown(lineOrSymbol: number | string, markdown: string, sourceLineNumber: number, sourceFileUri: Uri) {

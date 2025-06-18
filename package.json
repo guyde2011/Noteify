@@ -36,8 +36,8 @@
 				"title": "Delete Note"
 			},
 			{
-				"command": "noteify.addSymbolDoc",
-				"title": "Add Symbol Documentation"
+				"command": "noteify.addLineDoc",
+				"title": "Add Line Documentation"
 			},
 			{
 				"command": "noteify.saveNote",

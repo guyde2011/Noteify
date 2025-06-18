@@ -5,6 +5,7 @@ export enum BackendStatus {
     ConnectionClosed = 1,
     Unsupported = 2,
     NotFound = 3,
+    Other = 4,
 }
 
 export function BackendStatusToString(s: BackendStatus): string {
@@ -118,7 +119,7 @@ export interface DocumentationBackendFile<Self extends DocumentationBackendFile<
     /**
      * @returns either a backend status, or the document ID wrapped under a small object because BackendStatus is a number too.
      */
-    requestCreate(docId: number, markdown: string): Promise<BackendStatus | {docId: number}>;
+    requestCreate(lineOrSymbol: number | string, markdown: string): Promise<BackendStatus | {docId: number}>;
 
     /**
      * Must complete synchronously, because the file may be reopened immediately after calling dispose().

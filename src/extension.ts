@@ -112,7 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		comment.mode = vscode.CommentMode.Preview;
 		comment.requestHandle.edit(comment.markdown).then(status => {
-			if (status != BackendStatus.Success) {
+			if (status !== BackendStatus.Success) {
 				vscode.window.showErrorMessage(`Edit failed with error ${BackendStatusToString(status)}`);
 				// restore original contents
 				comment.markdown = comment.originMarkdown;
@@ -122,18 +122,36 @@ export function activate(context: vscode.ExtensionContext) {
 
 			// refresh view of the comment
 			comment.parentThread.comments = comment.parentThread.comments;
-		})
+		});
 	});
 
-	vscode.commands.registerCommand('noteify.addSymbolDoc', () => {
-		vscode.window.showInformationMessage("Unsupported");
-		/*
+	vscode.commands.registerCommand('noteify.addLineDoc', () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			return;
 		}
-		const selection = editor.selection.active;
-		const docUri = editor.document.uri;
+		const document = editor.document;
+		const position = editor.selection.active;
+
+		/*
+		session.create(completeCreation, document, position.line, "Hello World").then(createResult => {
+			if (typeof createResult === "number") {
+				vscode.window.showErrorMessage(`Add line doc failed with error ${BackendStatusToString(createResult)}`);
+			}
+		});
+		*/
+		/*
+		let pickOptions = Array.from(symbolDocManager.docManager.getFiles());
+		vscode.window.showQuickPick(pickOptions, { title: `Write docs of ${symbol.name} to:` }).then(
+			(option) => {
+				if (!option) {
+					return;
+				}
+				const symbolDoc = symbolDocManager.createSymbolDoc(symbol.name, vscode.Uri.file(option));
+				const comment = symbolCommentManager.insertComment(symbolDoc, new vscode.Location(docUri, symbol.selectionRange));
+				comment.mode = vscode.CommentMode.Editing;
+				comment.onUserEdit();
+			});
 
 		vscode.commands.executeCommand<vscode.DocumentSymbol[]>("vscode.executeDocumentSymbolProvider", docUri).then(
 			(symbols: vscode.DocumentSymbol[]) => {
