@@ -1,11 +1,7 @@
 import getAllBackends from "./allBackends";
 import {
 	BackendStatus,
-	BackendStatusToString,
-	DocEvent,
-	DocEventType,
 	Backend,
-	DocumentationBackendFile,
 	BackendInstance,
 } from "./interface";
 import * as vscode from "vscode";
@@ -13,6 +9,7 @@ import * as vscode from "vscode";
 /**
  * Interface the frontend provides to the session to be notified about new documentation objects.
  */
+/*
 export interface SessionFrontend<SessionFrontendDoc> {
 	addDoc(
 		textDocument: vscode.TextDocument,
@@ -23,10 +20,12 @@ export interface SessionFrontend<SessionFrontendDoc> {
 	delDoc(doc: SessionFrontendDoc): void;
 	changeDoc(doc: SessionFrontendDoc, markdown: string): void;
 }
+*/
 
 /**
  * proxy object giving access to DocumentationBackendFile's request methods for a specific doc, excluding access to create.
  */
+/*
 export class SessionFrontendRequestHandle {
 	constructor(
 		public backendFile: DocumentationBackendFile,
@@ -45,17 +44,17 @@ export class SessionFrontendRequestHandle {
 		return this.backendFile.requestDelete(this.docId);
 	}
 }
+*/
 
-export class Session<
-	FrontendComment,
-	Frontend extends SessionFrontend<FrontendComment>
-> {
-	openBackendWorkspaces: Array<BackendInstance>;
-	backendsWorkspacesOpen: Array<boolean>;
-	allBackends: Array<Backend>;
-	fileBackends: Map<vscode.TextDocument, SessionFile>;
+export interface SessionFrontend {
+	// TODO
+};
+
+export class Session<Frontend extends SessionFrontend> {
+	openBackendInstances: BackendInstance[];
+	backendInstancesOpen: boolean[];
+	allBackends: Backend[];
 	frontend: Frontend;
-	frontendComments: Map<string, FrontendComment>;
 
 	listenerSubscriptions: { dispose(): any }[];
 
@@ -64,15 +63,13 @@ export class Session<
 	 * It sits between the backend and frontend implementations.
 	 */
 	constructor(frontend: Frontend) {
-		this.openBackendWorkspaces = [];
+		this.openBackendInstances = [];
 		// backends are all closed, initially
-		this.backendsWorkspacesOpen = [];
+		this.backendInstancesOpen = [];
 		this.allBackends = getAllBackends();
 		for (let i = 0; i < this.allBackends.length; i++)
-			this.backendsWorkspacesOpen.push(false);
-		this.fileBackends = new Map();
+			this.backendInstancesOpen.push(false);
 		this.frontend = frontend;
-		this.frontendComments = new Map();
 		this.listenerSubscriptions = [];
 
 		// listen to stuff

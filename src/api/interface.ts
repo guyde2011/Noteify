@@ -1,5 +1,6 @@
 import { Uri } from "vscode";
 import * as doc from "./document";
+import { UpdateEvent } from "./events";
 
 export enum BackendStatus {
 	Success = 0,
@@ -83,13 +84,14 @@ export interface Backend {
 	 * Opening a documentation backend:
 	 *  - Returns "NotFound" if the backend does not exist.
 	 *  - Is encouraged to build an index of docmentation objects if necessary.
-	 * @param workspaceUri By default, should come from "workspaceFile", and may be stored as an identifier for this worksapce within the backend.
-	 * It could also be `noteify://user_defined_name`, to make the documentation portable between users and machines.
+	 *  - Sends an OpenEvent as its first event, with a BackendInstance attached.
+	 * Successful results are given to the listener, whereas the status code for errors is returned as a promise.
 	 */
-	open(workspaceUri: Uri): Promise<BackendResult<BackendInstance>>;
+	open(listener: (ev: UpdateEvent) => void): Promise<BackendStatus>;
 }
 
 export type BackendFeatures = {
+	/*
 	// Sets the contents of a section
 	readonly setSection?: (
 		sectionId: doc.SectionId,
@@ -108,6 +110,7 @@ export type BackendFeatures = {
 	readonly revealSection?: (
 		sectionId: doc.SectionId
 	) => Promise<BackendStatus>;
+	*/
 };
 
 /**
