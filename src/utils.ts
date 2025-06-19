@@ -78,3 +78,14 @@ export function writeFile(file: Uri | string, content: string): Promise<void> {
         });
     });
 }
+
+const RELEASE: boolean = false;
+
+export function writeError(...args: any[]) {
+    if (RELEASE) {
+        console.log(...args);
+    } else {
+        const vscode = require("vscode");
+        vscode.window.showErrorMessage(...args);
+    }
+}

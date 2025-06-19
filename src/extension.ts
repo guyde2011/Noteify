@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { initComments, CommentDoc, symbolCommentController } from './editorComment';
-import { Session, SessionFrontendRequestHandle } from './backends/Session';
-import { BackendStatus, BackendStatusToString } from './backends/interface';
+import { Session, SessionFrontendRequestHandle } from './api/Session';
+import { BackendStatus, BackendStatusToString } from './api/interface';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');

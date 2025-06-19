@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SessionFrontendRequestHandle } from "./backends/Session";
+import { SessionFrontendRequestHandle } from "./api/Session";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 
@@ -8,6 +8,7 @@ export function initComments() {
         symbolCommentController = vscode.comments.createCommentController('noteify-comments', "Research Docs");
     }
 }
+
 
 export class CommentDoc implements vscode.Comment {
     mode: vscode.CommentMode = vscode.CommentMode.Preview;
@@ -43,13 +44,13 @@ export class CommentDoc implements vscode.Comment {
 
     get contextValue(): string {
         let flags = "-";
-        if (this.requestHandle.backendProperties.featureFlags.jumpTo) {
+        if (this.requestHandle.backendProperties.features.jumpTo) {
             flags += "j";
         }
-        if (this.requestHandle.backendProperties.featureFlags.editDoc) {
+        if (this.requestHandle.backendProperties.features.editDoc) {
             flags += "e";
         }
-        if (this.requestHandle.backendProperties.featureFlags.deleteDoc) {
+        if (this.requestHandle.backendProperties.features.deleteDoc) {
             flags += "d";
         }
         return flags;
@@ -58,6 +59,7 @@ export class CommentDoc implements vscode.Comment {
 
 /*
 import { LinkedDoc, SymbolDoc } from "./symbolDoc";
+import { lspProvider, SymbolData, tsProvider } from "./parsing/symbol";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 var lastCommentId = 0;
@@ -162,16 +164,57 @@ export class SymbolCommentManager extends CommentsManager<SymbolDoc, SymbolComme
 
 export var symbolCommentManager = new SymbolCommentManager();
 
-export async function makeComments(docs: SymbolDoc[]) {
+export function initComments() {
+    if (symbolCommentController === null) {
+        symbolCommentController = vscode.comments.createCommentController('noteify-comments', "Research Docs");
+    }
+}
+
+export async function showSymbolDocs(docs: SymbolDoc[]) {
     for (const doc of docs) {
-        const wsSymbols: vscode.SymbolInformation[] =
-            await vscode.commands.executeCommand("vscode.executeWorkspaceSymbolProvider", doc.symbol);
-        for (const wsSymbol of wsSymbols) {
+        const searchQuery = { name: doc.symbol };
+        const lspSymbols = await lspProvider.searchSymbol(searchQuery);
+        const tsSymbols = await tsProvider.searchSymbol(searchQuery);
+        // We sort all symbols, and then try to add each of them, unless they have an intersection with an existing one.
+        const allSymbols = Array.from(lspSymbols);
+        allSymbols.concat(tsSymbols);
+
+        const compareSymbols = (lhs: SymbolData, rhs: SymbolData) => {
+            const uriComp = lhs.uri.fsPath.localeCompare(rhs.uri.fsPath);
+            if (uriComp !== 0) { return uriComp; }
+            const lineComp = lhs.range.start.line - rhs.range.start.line;
+            if (lineComp !== 0) { return lineComp; }
+            return lhs.range.start.character - rhs.range.start.character;
+        };
+
+        allSymbols.sort(compareSymbols);
+
+        const symbols = [];
+        for (const symbol of allSymbols) {
+            let isUnique = true;
+            for (let i = symbols.length - 1; i >= 0; i--) {
+                const existingSymbol = symbols[i];
+                if (symbol.uri !== existingSymbol.uri || symbol.range.start.line > existingSymbol.range.end.line) {
+                    // We assume here symbols are a single line. thus endLine == startLine for symbols
+                    break;
+                }
+                if (symbol.range.intersection(existingSymbol.range)) {
+                    // There's an intersection
+                    isUnique = false;
+                    break;
+                }
+            }
+            if (isUnique) {
+                symbols.push(symbol);
+            }
+        }
+
+        for (const symbol of symbols) {
             // Skip markdown files, otherwise you are pretty much unable to edit markdown
-            if (wsSymbol.location.uri.fsPath.endsWith(".md")) {
+            if (symbol.uri.fsPath.endsWith(".md")) {
                 continue;
             }
-            symbolCommentManager.insertComment(doc, wsSymbol.location);
+            symbolCommentManager.insertComment(doc, new vscode.Location(symbol.uri, symbol.range));
         }
     }
 }
