@@ -48,3 +48,16 @@ export type Root = {
     filename: string;
     blocks: Block[];
 };
+
+export type Element = Root | Inline | Block;
+
+export function isElement(value: any): value is Element {
+    return value instanceof Object && Object.hasOwnProperty("kind");
+}
+
+export function isElementArray(value: any): value is Element[] {
+    return (
+        Array.isArray(value) &&
+        ((value.length > 0 && isElement(value[0])) || value.length === 0)
+    );
+}

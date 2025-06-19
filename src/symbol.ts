@@ -2,6 +2,7 @@ import { Uri } from "vscode";
 import { Section } from "./api/document";
 import { DocumentProcessor } from "./api/frontend";
 import { writeError } from "./utils";
+import { ElementId, WorkspaceState, WorkspaceStateListener } from "./documentState";
 
 type Symbol = string;
 
@@ -15,10 +16,34 @@ type SymbolIdentifier = {
 	uri?: string;
 };
 
-type SymbolDoc = {
+type SymbolRelation = {
 	symbol: SymbolIdentifier;
 	relation: DocRelation;
 };
+
+type SymbolDoc = {
+	relations: SymbolRelation[];
+	element: ElementId;
+};
+
+
+class SymbolManager {
+	private symbolDocs: Map<ElementId, SymbolDoc> = new Map();
+
+    constructor(private state: WorkspaceState) {
+        state.on("elementAdded", (element) => {
+			switch (element.kind) {
+				case "section":
+					
+			}
+            if (element.kind === "link") {
+				// TODO: implement
+			} else if (element.kind === "section") {
+				element.
+			}
+        });
+    }
+}
 
 /*
 function parseSymbol(rawSymbol: string): SymbolIdentifier | undefined {
@@ -56,7 +81,7 @@ class SymbolProcessor implements DocumentProcessor {
 		for (const child of section.children) {
 			switch (child.kind) {
 */
-				/*
+/*
 				case "link": {
 					const symbol = parseSymbol(child.uri);
 					if (symbol) {
