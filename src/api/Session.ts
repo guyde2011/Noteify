@@ -1,4 +1,6 @@
 import getAllBackends from "./allBackends";
+import { BackendEvent } from "./events";
+import { DocumentProcessor } from "./frontend";
 import {
 	BackendStatus,
 	Backend,
@@ -46,15 +48,11 @@ export class SessionFrontendRequestHandle {
 }
 */
 
-export interface SessionFrontend {
-	// TODO
-};
-
-export class Session<Frontend extends SessionFrontend> {
+export class Session {
 	openBackendInstances: BackendInstance[];
 	backendInstancesOpen: boolean[];
 	allBackends: Backend[];
-	frontend: Frontend;
+	frontend: DocumentProcessor;
 
 	listenerSubscriptions: { dispose(): any }[];
 
@@ -62,7 +60,7 @@ export class Session<Frontend extends SessionFrontend> {
 	 * The Session class holds state over all of the currently open backends, including information about each open file.
 	 * It sits between the backend and frontend implementations.
 	 */
-	constructor(frontend: Frontend) {
+	constructor(frontend: DocumentProcessor) {
 		this.openBackendInstances = [];
 		// backends are all closed, initially
 		this.backendInstancesOpen = [];
@@ -73,12 +71,13 @@ export class Session<Frontend extends SessionFrontend> {
 		this.listenerSubscriptions = [];
 
 		// listen to stuff
-		this.listenToTextDocuments();
+		// this.listenToTextDocuments();
 	}
 
 	/**
 	 * Called once, during initialization. Looks at all open textDocuments.
 	 */
+	/*
 	listenToTextDocuments(): void {
 		// Initialize openFileUris with all of the current text docuemnt URIs.
 		// This does not need to notify any backend because none exist yet.
@@ -114,7 +113,9 @@ export class Session<Frontend extends SessionFrontend> {
 		});
 		this.listenerSubscriptions.push(ev);
 	}
+	*/
 
+	/*
 	onDocEvent(
 		textDocument: vscode.TextDocument,
 		backendIndex: number,
@@ -166,6 +167,21 @@ export class Session<Frontend extends SessionFrontend> {
 			}
 		}
 	}
+	*/
+
+	onBackendEvent(instance: BackendInstance, event: BackendEvent): void {
+		switch (event.op) {
+			case "open": {
+				this.openBackendInstances.push(instance);
+			} break;
+			case "send": {
+				this.frontend.onDocumentUpdated(event);
+			} break;
+			case "remove": {
+				this.frontend.onDocumentRemoved(event);
+			} break;
+		}
+	}
 
 	/**
 	 * load() may be called multiple times, and will always try loading every possible documentation backend.
@@ -174,7 +190,6 @@ export class Session<Frontend extends SessionFrontend> {
 		// We need the workspace to have a URI
 		const workspaceRawUri = vscode.workspace.workspaceFile;
 		if (workspaceRawUri === undefined) return "no workspace";
-		const workspaceUri = workspaceRawUri.toString();
 
 		// Some of the backends that weren't valid before might become valid now; for example, listening sockets that have been opened.
 		let tasks = [];
@@ -182,7 +197,7 @@ export class Session<Frontend extends SessionFrontend> {
 			const backend = this.allBackends[i];
 
 			// skip over already open backends
-			if (this.backendsWorkspacesOpen[i]) continue;
+			if (this.backendInstancesOpen[i]) continue;
 
 			// try to initialize uninitialized backends
 			if (!backend.initialized) {
@@ -194,37 +209,16 @@ export class Session<Frontend extends SessionFrontend> {
 				console.log(`initialized backend ${backend.name}`);
 			}
 
-			const task = backend
-				.open(workspaceUri)
-				.then((newWorkspaceBackend) => {
-					if (typeof newWorkspaceBackend === "number") {
-						// BackendStatus
-						console.log(
-							`open for backend ${
-								backend.name
-							} failed with status code ${BackendStatusToString(
-								newWorkspaceBackend
-							)}`
-						);
-					} else {
-						console.log(
-							`successfuly opened backend ${backend.name}`
-						);
-						const backendIndex = this.openBackendWorkspaces.length;
-						this.openBackendWorkspaces.push(newWorkspaceBackend);
-						this.backendsWorkspacesOpen[i] = true;
-
-						// asynchronously add this backend to every file
-						this.fileBackends.forEach(
-							(sessionFile, _textDocument, _map) => {
-								sessionFile.openFor(
-									newWorkspaceBackend,
-									backendIndex
-								);
-							}
-						);
-					}
-				});
+			// open the backend
+			this.backendInstancesOpen[i] = true;
+			const task = backend.open(this.onBackendEvent.bind(this)).then(result => {
+				if (result !== BackendStatus.Success) {
+					console.log(`open for backend ${backend.name} failed with status code ${BackendStatus.toString(result)}`);
+					this.backendInstancesOpen[i] = false;
+				} else {
+					console.log(`Backend ${backend.name} opened successfully`);
+				}
+			});
 			tasks.push(task);
 		}
 
@@ -239,76 +233,14 @@ export class Session<Frontend extends SessionFrontend> {
 		}
 		this.listenerSubscriptions = [];
 
-		// close backend files before their workspaces
-		this.fileBackends.forEach((sessionFile, _textDocument, _map) => {
-			sessionFile.close();
-		});
-		this.fileBackends = new Map();
-
-		// delete frontend comments
-		this.frontendComments.forEach((frontendComment, _key, _map) => {
-			this.frontend.delDoc(frontendComment);
-		});
-
 		// close backend workspaces
-		for (let workspace of this.openBackendWorkspaces) {
-			workspace.dispose();
+		for (let instance of this.openBackendInstances) {
+			instance.dispose();
 		}
-		this.openBackendWorkspaces = [];
+		this.openBackendInstances = [];
 
 		// other
 		this.allBackends = [];
-		this.backendsWorkspacesOpen = [];
-	}
-}
-
-export class SessionFile {
-	backendFiles: Array<DocumentationBackendFile<any>> = [];
-	isClosed: boolean = false;
-	constructor(
-		public textDocument: vscode.TextDocument,
-		public onDocEvent: (
-			textDoc: vscode.TextDocument,
-			backendIndex: number,
-			backendFile: DocumentationBackendFile<any>,
-			docEvent: DocEvent
-		) => void
-	) {}
-
-	openFor(
-		workspaceBackend: BackendInstance,
-		backendIndex: number
-	): void {
-		console.log(
-			`Opening ${this.textDocument.uri} for backend ${workspaceBackend}`
-		);
-		const listener = this.onDocEvent.bind(
-			null,
-			this.textDocument,
-			backendIndex
-		);
-		workspaceBackend
-			.openFile(this.textDocument.uri.toString(), listener)
-			.then((backendFile) => {
-				if (this.isClosed) {
-					console.log(
-						"Lost the race: file got closed before its backend got created."
-					);
-					backendFile.close();
-				} else {
-					console.log(
-						`Successfuly opened ${this.textDocument.uri} for backend ${workspaceBackend}`
-					);
-					this.backendFiles.push(backendFile);
-				}
-			});
-	}
-
-	close(): void {
-		this.isClosed = true;
-		for (let backendFile of this.backendFiles) {
-			backendFile.close();
-		}
-		this.backendFiles = [];
+		this.backendInstancesOpen = [];
 	}
 }

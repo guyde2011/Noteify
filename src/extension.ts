@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { initComments, CommentDoc, symbolCommentController } from './editorComment';
-import { Session, SessionFrontendRequestHandle } from './api/Session';
-import { BackendStatus, BackendStatusToString } from './api/interface';
+import { Session } from './api/Session';
+import { BackendStatus } from './api/interface';
+import { DocumentUpdateEvent, DocumentRemovedEvent } from './api/events';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -9,6 +10,13 @@ export function activate(context: vscode.ExtensionContext) {
 	initComments();
 
 	const session = new Session({
+		onDocumentUpdated(event: DocumentUpdateEvent) {
+			console.log("update:", event);
+		},
+		onDocumentRemoved(event: DocumentRemovedEvent) {
+			console.log("removed:", event);
+		},
+		/*
 		addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): CommentDoc | null {
 			console.log(`addDoc ${lineOrSymbol} ${markdown}`);
 
@@ -50,6 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
 			comment.markdown = markdown;
 			comment.parentThread.comments = comment.parentThread.comments;
 		},
+		*/
 	});
 	context.subscriptions.push(session);
 
@@ -98,11 +107,13 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showInformationMessage("Unexpected comment type");
 			return;
 		}
+		/*
 		comment.requestHandle.jumpTo().then(status => {
 			if (status != BackendStatus.Success) {
 				vscode.window.showErrorMessage(`Jump failed with error ${BackendStatusToString(status)}`);
 			}
 		})
+		*/
 	});
 
 	vscode.commands.registerCommand('noteify.saveNote', (comment: vscode.Comment) => {
@@ -111,6 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		comment.mode = vscode.CommentMode.Preview;
+        /*
 		comment.requestHandle.edit(comment.markdown).then(status => {
 			if (status != BackendStatus.Success) {
 				vscode.window.showErrorMessage(`Edit failed with error ${BackendStatusToString(status)}`);
@@ -122,7 +134,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 			// refresh view of the comment
 			comment.parentThread.comments = comment.parentThread.comments;
-		})
+		});
+		*/
 	});
 
 	vscode.commands.registerCommand('noteify.addSymbolDoc', () => {

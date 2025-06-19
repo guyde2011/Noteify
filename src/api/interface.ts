@@ -1,6 +1,6 @@
 import { Uri } from "vscode";
 import * as doc from "./document";
-import { UpdateEvent } from "./events";
+import { BackendEvent } from "./events";
 
 export enum BackendStatus {
 	Success = 0,
@@ -87,7 +87,7 @@ export interface Backend {
 	 *  - Sends an OpenEvent as its first event, with a BackendInstance attached.
 	 * Successful results are given to the listener, whereas the status code for errors is returned as a promise.
 	 */
-	open(listener: (ev: UpdateEvent) => void): Promise<BackendStatus>;
+	open(listener: (inst: BackendInstance, ev: BackendEvent) => void): Promise<BackendStatus>;
 }
 
 export type BackendFeatures = {

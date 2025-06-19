@@ -1,50 +1,18 @@
 import * as Doc from "./document";
 import { BackendInstance } from "./interface";
 
-export type OpenEvent = {
+export type BackendOpenEvent = {
     op: "open";
-    instance: BackendInstance;
 };
 
-export type AddOrChangeEvent = {
+export type DocumentUpdateEvent = {
     op: "send";
     doc: Doc.Root;
 };
 
-export type RemoveEvent = {
+export type DocumentRemovedEvent = {
     op: "remove";
     filename: string;
 };
 
-export type UpdateEvent = AddOrChangeEvent | RemoveEvent;
-
-/*
-export type SectionAddedEvent = {
-    id: doc.SectionId
-    file: doc.DocumentId
-    contents: doc.Section
-};
-
-export type SectionChangedEvent = {
-    id: doc.SectionId
-    file: doc.DocumentId
-    oldContents: doc.Section
-    newContents: doc.Section
-};
-
-export type SectionRemovedEvent = {
-    id: doc.SectionId
-    file: doc.DocumentId
-    contents: doc.Section
-};
-
-export type DocumentRemovedEvent = {
-    file: doc.DocumentId
-    uri: string
-};
-
-export type DocumentAddedEvent = {
-    file: doc.DocumentId
-    uri: string
-};
-*/
+export type BackendEvent = BackendOpenEvent | DocumentUpdateEvent | DocumentRemovedEvent;

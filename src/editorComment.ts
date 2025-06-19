@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { SessionFrontendRequestHandle } from "./api/Session";
 
 export var symbolCommentController: vscode.CommentController | null = null;
 
@@ -21,7 +20,6 @@ export class CommentDoc implements vscode.Comment {
 
     constructor(
 	    public originMarkdown: string,
-        public requestHandle: SessionFrontendRequestHandle,
         public parentThread: vscode.CommentThread,
     ) {
         this.markdown = originMarkdown;
@@ -39,11 +37,13 @@ export class CommentDoc implements vscode.Comment {
     }
 
     get label(): string {
-        return this.requestHandle.backendProperties.viaName;
+        // return this.requestHandle.backendProperties.viaName;
+        return "Noteify Undecided Label";
     }
 
     get contextValue(): string {
         let flags = "-";
+        /*
         if (this.requestHandle.backendProperties.features.jumpTo) {
             flags += "j";
         }
@@ -53,6 +53,7 @@ export class CommentDoc implements vscode.Comment {
         if (this.requestHandle.backendProperties.features.deleteDoc) {
             flags += "d";
         }
+        */
         return flags;
     }
 }

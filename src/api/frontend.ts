@@ -1,9 +1,9 @@
 import {
-	AddOrChangeEvent,
-	RemoveEvent,
+	DocumentUpdateEvent,
+	DocumentRemovedEvent,
 } from "./events";
 
 export interface DocumentProcessor {
-	onDocumentAddedOrChanged(event: AddOrChangeEvent): Promise<void>;
-	onDocumentRemoved(event: RemoveEvent): Promise<void>;
+	onDocumentUpdated(event: DocumentUpdateEvent): void;
+	onDocumentRemoved(event: DocumentRemovedEvent): void;
 }
