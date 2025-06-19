@@ -1,3 +1,5 @@
+export type SectionId = number;
+
 export interface BlockParent {
     blocks: Block[];
 }
@@ -11,7 +13,7 @@ export type Section = {
     level: number;
     blocks: Block[];
     children: Inline[];
-    id: number;
+    id: SectionId;
 };
 
 export type ContentBlock = {

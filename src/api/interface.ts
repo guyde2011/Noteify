@@ -1,5 +1,5 @@
 import { Uri } from "vscode";
-import * as doc from "./document";
+import * as Doc from "./document";
 import { BackendEvent } from "./events";
 
 export enum BackendStatus {
@@ -91,26 +91,24 @@ export interface Backend {
 }
 
 export type BackendFeatures = {
-	/*
 	// Sets the contents of a section
 	readonly setSection?: (
-		sectionId: doc.SectionId,
-		section: doc.Section
+		sectionId: Doc.SectionId,
+		section: Doc.Section
 	) => Promise<BackendStatus>;
 
 	// Creates a new Documentation section, and returns its id
-	readonly createSection?: () => Promise<doc.SectionId>;
+	readonly createSection?: () => Promise<Doc.SectionId>;
 
 	// Deletes the given documentation nsection
 	readonly deleteSection?: (
-		sectionId: doc.SectionId
+		sectionId: Doc.SectionId
 	) => Promise<BackendStatus>;
 
 	// A jump-to request for an external editor
 	readonly revealSection?: (
-		sectionId: doc.SectionId
+		sectionId: Doc.SectionId
 	) => Promise<BackendStatus>;
-	*/
 };
 
 /**
