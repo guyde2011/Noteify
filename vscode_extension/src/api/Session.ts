@@ -80,6 +80,10 @@ export class Session {
 			"sectionEditRequest",
 			this.applySectionEdit.bind(this)
 		);
+		this.frontend.sessionEmitter.on(
+			"sectionRevealRequest",
+			this.applySectionReveal.bind(this)
+		);
 
 		// listen to stuff
 		// this.listenToTextDocuments();
@@ -109,6 +113,28 @@ export class Session {
 		}
 
 		backend.features.setSection(sectionId, file, section);
+	}
+
+	private applySectionReveal(sectionId: doc.SectionId, file: doc.File) {
+		console.log("applySectionReveal", sectionId, file);
+		const backendId = this.fileToBackend.get(file);
+		if (backendId === undefined) {
+			console.log("No backend!");
+			return;
+		}
+		const sessionBackend = this.backendInstances[backendId];
+		const backend = sessionBackend.backend;
+		if (!backend || !sessionBackend.isOpen) {
+			console.log("Backend is closed");
+			return;
+		}
+
+		if (!backend.features.revealSection) {
+			console.log("Unsupported!");
+			return;
+		}
+
+		backend.features.revealSection(sectionId);
 	}
 
 	/**

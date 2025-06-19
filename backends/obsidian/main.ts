@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { App, Editor, Modal, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
 import * as net from "node:net";
 import {getServerSocketPath} from "./src/util";
@@ -15,11 +16,11 @@ const DEFAULT_SETTINGS: RPCPluginSettings = {
 }
 
 export default class RPCPlugin extends Plugin {
-    settings: RPCPluginSettings;
+    settings: RPCPluginSettings | null = null;
     ipcServer: net.Server | null = null;
     ipcServerError: Error | null = null;
     statusBarItem: HTMLElement | null = null;
-    state: State;
+    state: State | null = null;
 
     /**
      * Call after assigning to ipcServer or ipcServerError
@@ -54,7 +55,7 @@ export default class RPCPlugin extends Plugin {
 
     startIpcServer(): void {
         const sockPath = getServerSocketPath();
-        const server = net.createServer({ allowHalfOpen: false }, Client.newConnection.bind(null, this.state))
+        const server = net.createServer({ allowHalfOpen: false }, Client.newConnection.bind(null, this.state!))
         this.ipcServer = server;
         this.ipcServerError = null;
         this.updateStatusText();
@@ -87,7 +88,7 @@ export default class RPCPlugin extends Plugin {
         const app = this.app;
         const vault = this.app.vault;
         this.state = new State(vault, {
-            goTo(filename, line, column) {
+            async goTo(filename, line, column) {
                 console.log("goTo", filename, line, column);
                 const file = vault.getAbstractFileByPath(filename);
                 if (!(file instanceof TFile)) {
@@ -95,7 +96,7 @@ export default class RPCPlugin extends Plugin {
                     return;
                 }
                 const tab = app.workspace.getLeaf();
-                tab.openFile(file);
+                await tab.openFile(file);
                 if (!tab.view || !("editor" in tab.view)) {
                     console.log("goTo: no editor");
                     return;
@@ -232,9 +233,9 @@ class RPCSettingTab extends PluginSettingTab {
             .setDesc('It\'s a secret')
             .addText(text => text
                 .setPlaceholder('Enter your secret')
-                .setValue(this.plugin.settings.mySetting)
+                .setValue(this.plugin.settings!.mySetting)
                 .onChange(async (value) => {
-                    this.plugin.settings.mySetting = value;
+                    this.plugin.settings!.mySetting = value;
                     await this.plugin.saveSettings();
                 }));
     }

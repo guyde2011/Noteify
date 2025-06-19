@@ -14,6 +14,10 @@ export type WorkspaceSessionEvents = {
 		file: doc.File,
 		content: doc.Section
 	];
+	sectionRevealRequest: [
+		sectionId: doc.SectionId,
+		file: doc.File
+	]
 };
 
 export type Frontend = DocumentProcessor & {

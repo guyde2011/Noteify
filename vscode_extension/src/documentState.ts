@@ -32,8 +32,8 @@ export namespace Diff {
 }
 export type WithId<T> = T extends HasId
 	? {
-			[key in keyof T & string]: WithId<T[key]>;
-	  } & { elementId: ElementId }
+		[key in keyof T & string]: WithId<T[key]>;
+	} & { elementId: ElementId }
 	: T extends HasId[]
 	? WithId<T[keyof T & number]>[]
 	: T;
@@ -50,8 +50,7 @@ export type ElementData = {
 
 export class WorkspaceState
 	extends EventEmitter<WorkspaceFrontendEvents>
-	implements DocumentProcessor
-{
+	implements DocumentProcessor {
 	documents: Map<doc.File, WithId<doc.Root>> = new Map();
 	elements: Map<ElementId, ElementData> = new Map();
 	sections: Map<doc.SectionId, ElementId> = new Map();
@@ -92,7 +91,7 @@ export class WorkspaceState
 		}
 
 		for (const id of oldIds.keys()) {
-			if (!newIds.has(id) && id>= 0) {
+			if (!newIds.has(id) && id >= 0) {
 				this.removeElement(id);
 			}
 		}
@@ -236,6 +235,22 @@ export class WorkspaceState
 			elementData.file,
 			parsedSection
 		);
+		return FrontendStatus.Ok;
+	}
+
+	async revealSection(elementId: ElementId): Promise<FrontendStatus> {
+		const elementData = this.elements.get(elementId);
+		if (!elementData) {
+			return FrontendStatus.NoSuchElement;
+		}
+
+		const element = elementData.element;
+
+		if (element.kind !== "section") {
+			return FrontendStatus.InvalidElement;
+		}
+
+		this.sessionEmitter.emit("sectionRevealRequest", element.id, elementData.file);
 		return FrontendStatus.Ok;
 	}
 }
