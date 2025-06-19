@@ -48,126 +48,30 @@ export class SessionFrontendRequestHandle {
 }
 */
 
+/**
+ * a Session is a proxy object providing access to a number of Backends. Each Backend provides:
+ * - a stream of standardized events (BackendEvent)
+ * - a BackendInstance object, which must be disposed of, containing:
+ *   - Metadata about the backend
+ *   - Implementation of (optionally implementable) request methods, such as:
+ *     - Reveal (jump to a place in the documentation)
+ *     - Edit (request a change to happen in the contents)
+ *     - et cetera.
+ *   - Nonetheless, the only authority for external documentation's state is the event stream. Request methods are always best effort.
+ */
 export class Session {
+	allBackends: Backend[];
 	openBackendInstances: BackendInstance[];
 	backendInstancesOpen: boolean[];
-	allBackends: Backend[];
 	frontend: DocumentProcessor;
 
-	listenerSubscriptions: { dispose(): any }[];
 
-	/**
-	 * The Session class holds state over all of the currently open backends, including information about each open file.
-	 * It sits between the backend and frontend implementations.
-	 */
 	constructor(frontend: DocumentProcessor) {
-		this.openBackendInstances = [];
-		// backends are all closed, initially
-		this.backendInstancesOpen = [];
 		this.allBackends = getAllBackends();
-		for (let i = 0; i < this.allBackends.length; i++)
-			this.backendInstancesOpen.push(false);
+		this.openBackendInstances = [];
+        this.backendInstancesOpen = Array(this.allBackends.length).fill(false);
 		this.frontend = frontend;
-		this.listenerSubscriptions = [];
-
-		// listen to stuff
-		// this.listenToTextDocuments();
 	}
-
-	/**
-	 * Called once, during initialization. Looks at all open textDocuments.
-	 */
-	/*
-	listenToTextDocuments(): void {
-		// Initialize openFileUris with all of the current text docuemnt URIs.
-		// This does not need to notify any backend because none exist yet.
-		for (let doc of vscode.workspace.textDocuments) {
-			this.fileBackends.set(
-				doc,
-				new SessionFile(doc, this.onDocEvent.bind(this))
-			);
-		}
-
-		// new documents that are being opened
-		let ev = vscode.workspace.onDidOpenTextDocument((textDocument) => {
-			// currently, no backends
-			const sessionFile = new SessionFile(
-				textDocument,
-				this.onDocEvent.bind(this)
-			);
-			this.fileBackends.set(textDocument, sessionFile);
-
-			// asynchronously add every existing backend to this file
-			for (let i = 0; i < this.openBackendWorkspaces.length; i++) {
-				sessionFile.openFor(this.openBackendWorkspaces[i], i);
-			}
-		});
-		this.listenerSubscriptions.push(ev);
-		// documents that have been closed
-		ev = vscode.workspace.onDidCloseTextDocument((textDocument) => {
-			const sessionFile = this.fileBackends.get(textDocument);
-			if (sessionFile !== undefined) {
-				sessionFile.close();
-				this.fileBackends.delete(textDocument);
-			}
-		});
-		this.listenerSubscriptions.push(ev);
-	}
-	*/
-
-	/*
-	onDocEvent(
-		textDocument: vscode.TextDocument,
-		backendIndex: number,
-		backendFile: DocumentationBackendFile,
-		docEvent: DocEvent
-	): void {
-		console.log(`Got event: ${docEvent.type} for ${textDocument.uri}`);
-
-		switch (docEvent.type) {
-			case DocEventType.Add: {
-				const docId = docEvent.docId;
-				const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
-				const newComment = this.frontend.addDoc(
-					textDocument,
-					new SessionFrontendRequestHandle(backendFile, docId),
-					docEvent.lineOrSymbol,
-					docEvent.markdown
-				);
-				console.assert(!this.frontendComments.has(key));
-				this.frontendComments.set(key, newComment);
-				break;
-			}
-			case DocEventType.Delete: {
-				const docId = docEvent.docId;
-				const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
-				const deletedComment = this.frontendComments.get(key);
-				if (deletedComment !== undefined) {
-					this.frontend.delDoc(deletedComment);
-					this.frontendComments.delete(key);
-				} else {
-					console.error("got delete event for undefined comment");
-				}
-				break;
-			}
-			case DocEventType.Change: {
-				const docId = docEvent.docId;
-				const key = `${backendIndex}:${textDocument.uri.toString()}:${docId}`;
-				const changedComment = this.frontendComments.get(key);
-				if (changedComment !== undefined) {
-					this.frontend.changeDoc(changedComment, docEvent.markdown);
-				} else {
-					console.error("got change event for undefined comment");
-				}
-				break;
-			}
-			default: {
-				console.error(`unknown doc event: ${docEvent}`);
-				break;
-			}
-		}
-	}
-	*/
 
 	onBackendEvent(instance: BackendInstance, event: BackendEvent): void {
 		switch (event.op) {
@@ -227,12 +131,6 @@ export class Session {
 	}
 
 	dispose(): void {
-		// close generic subscriptions
-		for (let i = this.listenerSubscriptions.length - 1; i >= 0; i -= 1) {
-			this.listenerSubscriptions[i].dispose();
-		}
-		this.listenerSubscriptions = [];
-
 		// close backend workspaces
 		for (let instance of this.openBackendInstances) {
 			instance.dispose();
