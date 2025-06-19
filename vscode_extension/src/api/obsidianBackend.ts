@@ -23,6 +23,11 @@ function getServerSocketPath(): string {
     throw Error("No XDG_RUNTIME_DIR environment variable");
 }
 
+export type ObsidianRevealMessage = {
+    op: "reveal";
+    docId: number;
+};
+
 export class ObsidianBackend implements Backend {
     initialized: boolean = false;
     name: string = "Obsidian";
@@ -64,7 +69,17 @@ export class ObsidianBackend implements Backend {
 export class ObsidianInstance extends JsonSocket implements BackendInstance {
     // mandatory for backend workspaces
     readonly features: BackendFeatures = {
-        // TODO
+        revealSection: async (sectionId) => {
+            // TODO wait for some kind of response from Obsidian RPC.
+            // TODO add a success/failure ack message to Obsidian RPC
+            if (this.connectionClosed) {
+                return BackendStatus.ConnectionClosed;
+            }
+
+            const msg: ObsidianRevealMessage = { op: "reveal", docId: sectionId };
+            this.sendJson(msg);
+            return BackendStatus.Success;
+        },
     };
 
     properties = {
