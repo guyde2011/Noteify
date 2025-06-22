@@ -1,8 +1,6 @@
-import { Uri } from "vscode";
-import { Section } from "./api/document";
-import { DocumentProcessor } from "./api/frontend";
-import { writeError } from "./utils";
-import { ElementId, WorkspaceState, WorkspaceStateListener } from "./documentState";
+import * as doc from "./api/document";
+import { ElementId, WithId, WorkspaceState } from "./documentState";
+import { EventEmitter } from "stream";
 
 type Symbol = string;
 
@@ -21,28 +19,87 @@ type SymbolRelation = {
 	relation: DocRelation;
 };
 
-type SymbolDoc = {
+export type SymbolDoc = {
 	relations: SymbolRelation[];
 	element: ElementId;
 };
 
+type SymbolManagerEvents = {
+	docAdded: [doc: SymbolDoc];
+	docRemoved: [doc: SymbolDoc];
+};
 
-class SymbolManager {
+export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 	private symbolDocs: Map<ElementId, SymbolDoc> = new Map();
 
-    constructor(private state: WorkspaceState) {
-        state.on("elementAdded", (element) => {
-			switch (element.kind) {
-				case "section":
-					
-			}
-            if (element.kind === "link") {
-				// TODO: implement
-			} else if (element.kind === "section") {
-				element.
-			}
-        });
-    }
+	constructor(private state: WorkspaceState) {
+		super();
+		state.on("elementAdded", this.onElementAdded);
+		state.on("elementRemoved", this.onElementRemoved);
+	}
+
+	dispose() {
+		this.state.removeListener("elementAdded", this.onElementAdded);
+		this.state.removeListener("elementRemoved", this.onElementRemoved);
+	}
+
+	addDoc(
+		elementId: ElementId,
+		relations: SymbolRelation[]
+	): SymbolDoc | undefined {
+		// Remove the document if it already exists
+		const existing = this.removeDoc(elementId);
+
+		const symbolDoc: SymbolDoc = {
+			element: elementId,
+			relations: relations,
+		};
+		this.symbolDocs.set(elementId, symbolDoc);
+
+		this.emit("docAdded", symbolDoc);
+
+		return existing;
+	}
+
+	removeDoc(elementId: ElementId): SymbolDoc | undefined {
+		const symbolDoc = this.symbolDocs.get(elementId);
+		if (!symbolDoc) {
+			return;
+		}
+		this.emit("docRemoved", symbolDoc);
+		return symbolDoc;
+	}
+
+	private onElementAdded(element: WithId<doc.Element>) {
+		switch (element.kind) {
+			case "section":
+				const symbols = extractSymbolRelations(element);
+				this.addDoc(element.elementId, symbols);
+				break;
+			case "link":
+				// TODO: Implement
+				break;
+		}
+	}
+
+	private onElementRemoved(element: WithId<doc.Element>) {
+		this.removeDoc(element.elementId);
+	}
+}
+
+function extractSymbolRelations(element: doc.Section): SymbolRelation[] {
+	// TODO: Extract from links and such.
+	// Iterate over title parts
+	for (const child of element.children) {
+		switch (child.kind) {
+			case "link":
+
+				break;
+			case "text":
+				const cleanContent = child.content.trim();
+				if (isSymbolLike())
+		}
+	}
 }
 
 /*

@@ -3,47 +3,49 @@ import * as vscode from "vscode";
 export var symbolCommentController: vscode.CommentController | null = null;
 
 export function initComments() {
-    if (symbolCommentController === null) {
-        symbolCommentController = vscode.comments.createCommentController('noteify-comments', "Research Docs");
-    }
+	if (symbolCommentController === null) {
+		symbolCommentController = vscode.comments.createCommentController(
+			"noteify-comments",
+			"Research Docs"
+		);
+	}
 }
 
-
 export class CommentDoc implements vscode.Comment {
-    mode: vscode.CommentMode = vscode.CommentMode.Preview;
-    author: vscode.CommentAuthorInformation = { name: "Researcher" };
-    /**
-     * markdown may be assigned by an editor, whereas originMarkdown is the value set by the object itself.
-     * markdown is restored to originMarkdown after an edit is cancelled.
-     */
-    markdown: string;
+	mode: vscode.CommentMode = vscode.CommentMode.Preview;
+	author: vscode.CommentAuthorInformation = { name: "Researcher" };
+	/**
+	 * markdown may be assigned by an editor, whereas originMarkdown is the value set by the object itself.
+	 * markdown is restored to originMarkdown after an edit is cancelled.
+	 */
+	markdown: string;
 
-    constructor(
-	    public originMarkdown: string,
-        public parentThread: vscode.CommentThread,
-    ) {
-        this.markdown = originMarkdown;
-    };
+	constructor(
+		public originMarkdown: string,
+		public parentThread: vscode.CommentThread
+	) {
+		this.markdown = originMarkdown;
+	}
 
-    get body(): vscode.MarkdownString {
-        return new vscode.MarkdownString(this.markdown);
-    }
+	get body(): vscode.MarkdownString {
+		return new vscode.MarkdownString(this.markdown);
+	}
 
-    set body(content: string | vscode.MarkdownString) {
-        if (content instanceof vscode.MarkdownString) {
-            content = content.value;
-        }
-        this.markdown = content;
-    }
+	set body(content: string | vscode.MarkdownString) {
+		if (content instanceof vscode.MarkdownString) {
+			content = content.value;
+		}
+		this.markdown = content;
+	}
 
-    get label(): string {
-        // return this.requestHandle.backendProperties.viaName;
-        return "Noteify Undecided Label";
-    }
+	get label(): string {
+		// return this.requestHandle.backendProperties.viaName;
+		return "Noteify Undecided Label";
+	}
 
-    get contextValue(): string {
-        let flags = "-";
-        /*
+	get contextValue(): string {
+		let flags = "-";
+		/*
         if (this.requestHandle.backendProperties.features.jumpTo) {
             flags += "j";
         }
@@ -54,8 +56,8 @@ export class CommentDoc implements vscode.Comment {
             flags += "d";
         }
         */
-        return flags;
-    }
+		return flags;
+	}
 }
 
 /*

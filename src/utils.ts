@@ -79,6 +79,37 @@ export function writeFile(file: Uri | string, content: string): Promise<void> {
     });
 }
 
+export function transformTree<T, F>(
+	root: T,
+	children: (node: T) => T[],
+	transform: (node: T, children: F[]) => F
+): F {
+	const stack: T[][] = [[root]];
+	const outputStack: F[][] = [[]];
+
+	while (stack.length > 0) {
+		const top = stack[stack.length - 1];
+		if (top.length > 0) {
+			const curElem = top[top.length - 1];
+			stack.push(children(curElem));
+			outputStack.push([]);
+			continue;
+		}
+
+		stack.pop();
+		// shouldn't happen because of the current implementation
+		if (stack.length === 0 || stack[stack.length - 1].length === 0) {
+			console.error("WTF, this shouldn't happen");
+			return transform(root, []);
+		}
+		const element = stack[stack.length - 1].pop();
+		const transformed = transform(element!, outputStack.pop()!);
+		outputStack[outputStack.length - 1].push(transformed);
+	}
+
+	return outputStack.pop()![0]!;
+}
+
 const RELEASE: boolean = false;
 
 export function writeError(...args: any[]) {

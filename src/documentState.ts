@@ -2,7 +2,8 @@ import { EventEmitter } from "stream";
 import * as doc from "./api/document";
 import { DocumentProcessor } from "./api/frontend";
 import { DocumentUpdateEvent, DocumentRemovedEvent } from "./api/events";
-import { transformDoc, transformTree } from "./treeComparison";
+import { transformDoc } from "./documentTree";
+import { transformTree } from "./utils";
 
 export type DocFile = string;
 export type ElementId = number;
@@ -35,8 +36,8 @@ export type WithId<T> = T extends HasId
 	: T;
 
 type WorkspaceStateEvents = {
-    "elementAdded": [element: WithId<doc.Element>];
-    "elementRemoved": [element: WithId<doc.Element>];
+	elementAdded: [element: WithId<doc.Element>];
+	elementRemoved: [element: WithId<doc.Element>];
 };
 
 export class WorkspaceState
@@ -91,7 +92,10 @@ export class WorkspaceState
 					);
 					if (element.state === "changed") {
 						ret.push(element.value.elementId);
-						this.emit(WorkspaceState.ElementAdded, element.value as WithId<doc.Element>);
+						this.emit(
+							"elementAdded",
+							element.value as WithId<doc.Element>
+						);
 					}
 					return ret;
 				}
@@ -102,7 +106,7 @@ export class WorkspaceState
 
 			for (const [id, element] of oldSet) {
 				if (!newSet.has(id)) {
-					this.emit(WorkspaceState.ElementRemoved, element);
+					this.emit("elementRemoved", element);
 				}
 			}
 		}
@@ -114,7 +118,7 @@ export class WorkspaceState
 			return;
 		}
 		for (const element of getDocElements(document)) {
-			this.emit(WorkspaceState.ElementRemoved, element);
+			this.emit("elementRemoved", element);
 		}
 	}
 
@@ -180,13 +184,6 @@ export class WorkspaceState
 			(property) => property
 		);
 	}
-}
-
-export namespace WorkspaceState {
-	export type ElementAdded = "elementAdded";
-	export type ElementRemoved = "elementRemoved";
-	export const ElementAdded: ElementAdded = "elementAdded";
-	export const ElementRemoved: ElementRemoved = "elementRemoved";
 }
 
 function getDocElements(root: WithId<doc.Root>): WithId<doc.Element>[] {
