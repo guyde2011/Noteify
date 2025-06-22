@@ -1,3 +1,5 @@
+export type SectionId = number;
+
 export interface BlockParent {
     blocks: Block[];
 }
