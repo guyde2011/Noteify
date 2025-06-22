@@ -6,6 +6,9 @@
 		{
 			"path": "vscode_extension"
 		},
+        {
+            "path": "timeline"
+        },
 		{
 			"path": "backends/obsidian",
             "name": "backends/obsidian"
