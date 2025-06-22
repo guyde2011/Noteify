@@ -3,10 +3,15 @@
  */
 
 import * as Doc from "./document";
-import { BackendInstance } from "./interface";
+import { BackendInstance, BackendStatus } from "./interface";
 
 export type BackendOpenEvent = {
     op: "open";
+};
+
+export type BackendClosedEvent = {
+    op: "close";
+    status: BackendStatus;
 };
 
 export type DocumentUpdateEvent = {
@@ -19,4 +24,4 @@ export type DocumentRemovedEvent = {
     filename: string;
 };
 
-export type BackendEvent = BackendOpenEvent | DocumentUpdateEvent | DocumentRemovedEvent;
+export type BackendEvent = BackendOpenEvent | BackendClosedEvent | DocumentUpdateEvent | DocumentRemovedEvent;

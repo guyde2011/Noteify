@@ -61,28 +61,57 @@ export class SessionFrontendRequestHandle {
  */
 export class Session {
 	allBackends: Backend[];
-	openBackendInstances: BackendInstance[];
-	backendInstancesOpen: boolean[];
+	/**
+	 * mappings between Backend index in allBackends to information about the instance.
+	 * null: not open at all
+	 * true: currently being opened
+	 * { instance, openFiles }: currently active
+	 */
+	backendInstances: ({ instance: BackendInstance, openFiles: Set<string> } | true | null)[];
 	frontend: DocumentProcessor;
 
 
 	constructor(frontend: DocumentProcessor) {
 		this.allBackends = getAllBackends();
-		this.openBackendInstances = [];
-        this.backendInstancesOpen = Array(this.allBackends.length).fill(false);
+        this.backendInstances = Array(this.allBackends.length).fill(null);
 		this.frontend = frontend;
 	}
 
-	onBackendEvent(instance: BackendInstance, event: BackendEvent): void {
+	onBackendEvent(backendIndex: number, instance: BackendInstance, event: BackendEvent): void {
+		if (event.op === "open") {
+			this.backendInstances[backendIndex] = { instance, openFiles: new Set() };
+			return;
+		}
+
+		const instanceInfo = this.backendInstances[backendIndex];
+		if (instanceInfo === null || instanceInfo === true) {
+			console.assert(instanceInfo !== null && instanceInfo !== true);
+			return;
+		}
+
+		const { openFiles } = instanceInfo;
+
 		switch (event.op) {
-			case "open": {
-				this.openBackendInstances.push(instance);
+			case "close": {
+				console.log(`Backend closed with status ${BackendStatus.toString(event.status)}`);
+
+				// show client message
+				vscode.window.showInformationMessage(`Connection closed to backend ${this.allBackends[backendIndex].name}: ${BackendStatus.toString(event.status)}`);
+
+				// send matching "remove" events for every document from this backend
+				openFiles.forEach(filename => this.frontend.onDocumentRemoved({ op: "remove", filename }));
+				openFiles.clear();
+
+				// done
+				this.backendInstances[backendIndex] = null;
 			} break;
 			case "send": {
 				this.frontend.onDocumentUpdated(event);
+				openFiles.add(event.doc.filename);
 			} break;
 			case "remove": {
 				this.frontend.onDocumentRemoved(event);
+				openFiles.delete(event.filename);
 			} break;
 		}
 	}
@@ -101,7 +130,7 @@ export class Session {
 			const backend = this.allBackends[i];
 
 			// skip over already open backends
-			if (this.backendInstancesOpen[i]) continue;
+			if (this.backendInstances[i] !== null) continue;
 
 			// try to initialize uninitialized backends
 			if (!backend.initialized) {
@@ -114,11 +143,11 @@ export class Session {
 			}
 
 			// open the backend
-			this.backendInstancesOpen[i] = true;
-			const task = backend.open(this.onBackendEvent.bind(this)).then(result => {
+			this.backendInstances[i] = true;
+			const task = backend.open(this.onBackendEvent.bind(this, i)).then(result => {
 				if (result !== BackendStatus.Success) {
 					console.log(`open for backend ${backend.name} failed with status code ${BackendStatus.toString(result)}`);
-					this.backendInstancesOpen[i] = false;
+					this.backendInstances[i] = null;
 				} else {
 					console.log(`Backend ${backend.name} opened successfully`);
 				}
@@ -132,13 +161,14 @@ export class Session {
 
 	dispose(): void {
 		// close backend workspaces
-		for (let instance of this.openBackendInstances) {
-			instance.dispose();
+		for (const maybeInstance of this.backendInstances) {
+			if (maybeInstance !== null && maybeInstance !== true) {
+				maybeInstance.instance.dispose();
+			}
 		}
-		this.openBackendInstances = [];
+		this.backendInstances = [];
 
 		// other
 		this.allBackends = [];
-		this.backendInstancesOpen = [];
 	}
 }
