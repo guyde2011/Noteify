@@ -46,7 +46,7 @@ export function transformDoc<
 				elem as E,
 				children
 					.filter((child) => child.childKind === "named")
-					.map((child) => [child.name, child.child])
+					.map((child) => [(child as any).name, child.child])
 			);
 		} else {
 			transformed = transformProperty(elem);

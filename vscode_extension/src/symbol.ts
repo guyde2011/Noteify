@@ -97,9 +97,11 @@ function extractSymbolRelations(element: doc.Section): SymbolRelation[] {
 				break;
 			case "text":
 				const cleanContent = child.content.trim();
-				if (isSymbolLike())
+				// if (isSymbolLike())
 		}
 	}
+	// TODO
+	return [];
 }
 
 /*
