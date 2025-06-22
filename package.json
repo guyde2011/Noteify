@@ -100,11 +100,12 @@
 		"vscode-test": "^1.5.2"
 	},
 	"dependencies": {
-		"tree-sitter": "^0.25.0",
-        "mdast": "^2.3.2",
-        "mdast-util-from-markdown": "^2.0.2",
-        "mdast-util-gfm": "^3.1.0",
-        "mdast-util-to-markdown": "^2.1.2",
-        "micromark-extension-gfm": "^3.0.0"
+		"mdast": "^2.3.2",
+		"mdast-util-from-markdown": "^2.0.2",
+		"mdast-util-gfm": "^3.1.0",
+		"mdast-util-to-markdown": "^2.1.2",
+		"micromark-extension-gfm": "^3.0.0",
+		"tree-sitter": "^0.21.1",
+		"tree-sitter-cpp": "^0.23.4"
 	}
 }

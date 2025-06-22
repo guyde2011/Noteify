@@ -7,11 +7,12 @@ import {
 	WorkspaceStateEvents,
 } from "./documentState";
 import { EventEmitter } from "stream";
-import { EventSubscriber } from "./utils";
+import { EventSubscriber, flattenArray } from "./utils";
 
 export enum DocRelation {
 	Title = "title",
 	Link = "link",
+	Text = "text",
 }
 
 export type SymbolIdentifier = {
@@ -99,18 +100,23 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 function tryExtractUriSymbol(uri: Uri): SymbolIdentifier | undefined {
 	if (
 		uri.scheme &&
-		!["", "file", "code"].find((scheme) => uri.scheme === scheme)
+		!["file", "code", ""].find((scheme) => uri.scheme === scheme)
 	) {
 		return;
 	}
 	const filePath = uri.path;
 	const symbol = uri.fragment;
+	if (filePath.search(".") <= 0 || symbol.trim().length === 0) {
+		return;
+	}
 	// TODO: Validate this is not a link to a non symbol :(
 	return {
 		name: symbol,
 		uri: filePath,
 	};
 }
+
+const FILE_SEP_PATTERN = /[^:]:[^:]/;
 
 function tryExtractSymbol(
 	text: string,
@@ -127,11 +133,15 @@ function tryExtractSymbol(
 
 	const uri = Uri.parse(text);
 	if (uri) {
-		return tryExtractUriSymbol(uri);
+		const uriSymbol = tryExtractUriSymbol(uri);
+		if (uriSymbol) {
+			return uriSymbol;
+		}
 	}
 
 	// TODO: A better check for identifying <filename>:<symbol>
-	const parts = text.split(/[^:]:[^:]/);
+	const parts = text.split(FILE_SEP_PATTERN);
+
 	if (parts.length === 1) {
 		return {
 			name: parts[0],
@@ -163,11 +173,35 @@ function _recursiveExtractSymbolRelations(
 			}
 			break;
 		case "text":
+			const innerSymbol = tryExtractSymbol(element.content);
+			if (innerSymbol) {
+				relations.push({
+					relation: DocRelation.Text,
+					symbol: innerSymbol,
+				});
+			}
 			break;
 		case "section":
 			if (!traverseSection) {
 				break;
 			}
+			const titleRels = flattenArray(
+				element.children.map((subChild) =>
+					_recursiveExtractSymbolRelations(subChild, false)
+				)
+			).map((rel) => ({
+				relation: DocRelation.Title,
+				symbol: rel.symbol,
+			}));
+			relations.push(...titleRels);
+			relations.push(
+				...flattenArray(
+					element.blocks.map((subChild) =>
+						_recursiveExtractSymbolRelations(subChild, false)
+					)
+				)
+			);
+			break;
 		case "block":
 		case "bold":
 		case "italics":
@@ -175,7 +209,7 @@ function _recursiveExtractSymbolRelations(
 				_recursiveExtractSymbolRelations(subChild, false)
 			);
 			for (const childRel of childrenRel) {
-				relations.concat(childRel);
+				relations.push(...childRel);
 			}
 			break;
 	}
@@ -185,4 +219,3 @@ function _recursiveExtractSymbolRelations(
 function isSymbolLike(text: string): boolean {
 	return text.trim().search(new RegExp("[ \t{}\\\\'\"]")) === -1;
 }
-

@@ -68,7 +68,7 @@ export class WorkspaceState
 		const newIds = diffs.map((diff) => diff.elementId);
 
 		for (const element of diffs) {
-			this.emit("elementAdded", element);
+			this.addElement(element);
 		}
 
 		const newSet = new Set(newIds);
@@ -76,7 +76,7 @@ export class WorkspaceState
 
 		for (const [id, element] of oldSet) {
 			if (!newSet.has(id) && id >= 0) {
-				this.emit("elementRemoved", element);
+				this.removeElement(element.elementId);
 			}
 		}
 	}
@@ -87,7 +87,7 @@ export class WorkspaceState
 			return;
 		}
 		for (const element of getDocElements(document)) {
-			this.emit("elementRemoved", element);
+			this.removeElement(element.elementId);
 		}
 	}
 
@@ -148,12 +148,28 @@ export class WorkspaceState
 			withIds,
 			(elements) => flattenArray(elements),
 			(element, children) => {
-				const output: WithId<doc.Root>[] = flattenArray(children.map(([_key, value]) => value));
+				const output: WithId<doc.Root>[] = flattenArray(
+					children.map(([_key, value]) => value)
+				);
 				output.push(element);
 				return output;
 			},
 			(_) => [] as WithId<doc.Element>[]
 		);
+	}
+
+	private addElement(element: WithId<doc.Element>) {
+		this.elements.set(element.elementId, element);
+		this.emit("elementAdded", element);
+	}
+
+	private removeElement(elementId: ElementId): doc.Element | undefined {
+		const element = this.elements.get(elementId);
+		if (!element) {
+			return;
+		}
+		this.elements.delete(element.elementId);
+		this.emit("elementRemoved", element);
 	}
 }
 
