@@ -78,7 +78,7 @@ export class LocalFilesInstance implements BackendInstance {
             fsWatcher.onDidDelete(this.onDeletedFileUri.bind(this))
         );
         // load initial files
-        vscode.workspace.findFiles("**/**.md").then((initialUris) => {
+        vscode.workspace.findFiles("**/*.md").then((initialUris) => {
             initialUris.forEach(this.onUpdatedFileUri.bind(this));
         });
     }

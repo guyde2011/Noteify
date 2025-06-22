@@ -52,7 +52,7 @@ export type Root = {
 export type Element = Root | Inline | Block;
 
 export function isElement(value: any): value is Element {
-    return value instanceof Object && Object.hasOwnProperty("kind");
+    return value instanceof Object && value.hasOwnProperty("kind");
 }
 
 export function isElementArray(value: any): value is Element[] {

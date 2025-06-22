@@ -1,82 +1,79 @@
 import * as fs from "fs";
+import { EventEmitter } from "stream";
 import { Uri } from "vscode";
 
-
 export function listDir(dir: string): Promise<string[]> {
-    return new Promise<string[]>((resolve, reject) => {
-        fs.readdir(dir, (err: any, files: string[]) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(files);
-            }
-
-        });
-    });
+	return new Promise<string[]>((resolve, reject) => {
+		fs.readdir(dir, (err: any, files: string[]) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(files);
+			}
+		});
+	});
 }
 
 export function stat(file: string): Promise<fs.Stats> {
-     return new Promise<fs.Stats>((resolve, reject) => {
-        fs.stat(file, (err: any, files: fs.Stats) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(files);
-            }
-        });
-    });
+	return new Promise<fs.Stats>((resolve, reject) => {
+		fs.stat(file, (err: any, files: fs.Stats) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(files);
+			}
+		});
+	});
 }
 
 export async function walkDir(dir: string): Promise<string[]> {
-    let dirStack = [[dir]];
-    const output = [];
-    while (dirStack.length > 0) {
-        if (dirStack[dirStack.length - 1].length === 0) {
-            dirStack.pop();
-            dirStack[dirStack.length - 1].pop();
-            continue;
-        }
-        const queue = dirStack[dirStack.length - 1];
-        const curFile = queue[queue.length - 1];
-        if ((await stat(curFile)).isDirectory()) {
-            const fileNames = await listDir(curFile);
-            dirStack.push(fileNames.map((name) => `${curFile}/${name}`));
-        } else {
-            output.push(curFile);
-            dirStack.pop();
-        }
-    }
-    return output;
+	let dirStack = [[dir]];
+	const output = [];
+	while (dirStack.length > 0) {
+		if (dirStack[dirStack.length - 1].length === 0) {
+			dirStack.pop();
+			dirStack[dirStack.length - 1].pop();
+			continue;
+		}
+		const queue = dirStack[dirStack.length - 1];
+		const curFile = queue[queue.length - 1];
+		if ((await stat(curFile)).isDirectory()) {
+			const fileNames = await listDir(curFile);
+			dirStack.push(fileNames.map((name) => `${curFile}/${name}`));
+		} else {
+			output.push(curFile);
+			dirStack.pop();
+		}
+	}
+	return output;
 }
 
 export function readFile(file: Uri | string): Promise<string> {
-    const path = (file instanceof Uri) ? file.fsPath : file;
+	const path = file instanceof Uri ? file.fsPath : file;
 
-    return new Promise<string>((resolve, reject) => {
-        fs.readFile(path, 'utf8', (err: any, data: string) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data);
-            }
-
-        });
-    });
+	return new Promise<string>((resolve, reject) => {
+		fs.readFile(path, "utf8", (err: any, data: string) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(data);
+			}
+		});
+	});
 }
 
 export function writeFile(file: Uri | string, content: string): Promise<void> {
-    const path = (file instanceof Uri) ? file.fsPath : file;
+	const path = file instanceof Uri ? file.fsPath : file;
 
-    return new Promise<void>((resolve, reject) => {
-        fs.writeFile(path, content, (err: any, data: void) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data);
-            }
-
-        });
-    });
+	return new Promise<void>((resolve, reject) => {
+		fs.writeFile(path, content, (err: any, data: void) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(data);
+			}
+		});
+	});
 }
 
 export function transformTree<T, F>(
@@ -97,12 +94,20 @@ export function transformTree<T, F>(
 		}
 
 		stack.pop();
+
+		if (stack.length === 0) {
+			// We've just transformed the root, let's return it
+			break;
+		}
+
 		// shouldn't happen because of the current implementation
-		if (stack.length === 0 || stack[stack.length - 1].length === 0) {
+		if (stack[stack.length - 1].length === 0) {
 			console.error("WTF, this shouldn't happen");
 			return transform(root, []);
 		}
-		const element = stack[stack.length - 1].pop();
+
+		const element = stack[stack.length - 1].pop(); // current parent
+		// Transform the current parent
 		const transformed = transform(element!, outputStack.pop()!);
 		outputStack[outputStack.length - 1].push(transformed);
 	}
@@ -113,10 +118,64 @@ export function transformTree<T, F>(
 const RELEASE: boolean = false;
 
 export function writeError(...args: any[]) {
-    if (RELEASE) {
-        console.log(...args);
-    } else {
-        const vscode = require("vscode");
-        vscode.window.showErrorMessage(...args);
-    }
+	if (RELEASE) {
+		console.log(...args);
+	} else {
+		const vscode = require("vscode");
+		vscode.window.showErrorMessage(...args);
+	}
+}
+
+// Types taken from node types for event emitter.
+type DefaultEventMap = [never];
+type Key<K, T> = T extends DefaultEventMap ? string | symbol : K | keyof T;
+type Listener<K, T, F> = T extends DefaultEventMap
+	? F
+	: K extends keyof T
+	? T[K] extends unknown[]
+		? (...args: T[K]) => void
+		: never
+	: never;
+type Listener1<K, T> = Listener<K, T, (...args: any[]) => void>;
+
+export class EventSubscriber<T extends { [key: string | symbol]: any[] }> {
+	private listeners: [
+		EventEmitter<T>,
+		Key<keyof T, T>,
+		Listener1<never, T>
+	][] = [];
+
+	subscribe<Ev extends keyof T, Em extends EventEmitter<T>>(
+		emitter: Em,
+		event: Key<Ev, T>,
+		handler: Listener1<Ev, T>
+	): this {
+		this.listeners.push([emitter, event, handler]);
+		emitter.on(event, handler);
+		return this;
+	}
+
+	dispose() {
+		this.listeners.forEach(([emitter, event, handler]) =>
+			emitter.removeListener(event, handler)
+		);
+		this.listeners = [];
+	}
+}
+
+export function flattenArray<T>(array: T[][]): T[] {
+	return ([] as T[]).concat.apply([], array);
+}
+
+type FieldObject<T extends [string, any][]> = {
+	[key in keyof T & number as T[key][0]]: T[key][1];
+};
+
+export function objectFromFields<F extends [string, any][]>(
+	fields: F
+): FieldObject<F> {
+	return Object.assign(
+		{},
+		...fields.map(([key, value]) => ({ [key]: value }))
+	);
 }

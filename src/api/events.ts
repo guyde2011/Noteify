@@ -1,5 +1,4 @@
 import * as Doc from "./document";
-import { BackendInstance } from "./interface";
 
 export type BackendOpenEvent = {
     op: "open";
