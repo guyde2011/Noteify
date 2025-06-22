@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as doc from "./api/document";
 import { ElementId, WithId } from "./documentState";
 import { SymbolDoc, SymbolManager, SymbolManagerEvents } from "./symbol";
-import { lspProvider, SymbolData } from "./workspaceSymbol";
+import { lspProvider, SymbolData, tsProvider } from "./workspaceSymbol";
 import { EventSubscriber, objectFromFields } from "./utils";
 import { transformDoc } from "./documentTree";
 
@@ -72,6 +72,7 @@ export abstract class CommentsManager<D, C extends ResearchComment> {
 		data: D,
 		thread: vscode.CommentThread
 	): C | undefined;
+
 	protected abstract createCommentThread(
 		data: D,
 		location: vscode.Location
@@ -90,9 +91,7 @@ export abstract class CommentsManager<D, C extends ResearchComment> {
 		if (!comment) {
 			return;
 		}
-		thread.comments = [...thread.comments, comment];
 		this.commentsById.set(comment.id, comment);
-		comment.parents.push(thread);
 		return comment.id;
 	}
 }
@@ -106,11 +105,13 @@ export class SymbolCommentManager extends CommentsManager<
 	constructor(private readonly symbolManager: SymbolManager) {
 		super();
 
-		this.subscriber.subscribe(
-			symbolManager,
-			"docAdded",
-			this.onDocAdded.bind(this)
-		).subscribe(symbolManager, "docRemoved", this.onDocRemoved.bind(this));
+		this.subscriber
+			.subscribe(symbolManager, "docAdded", this.onDocAdded.bind(this))
+			.subscribe(
+				symbolManager,
+				"docRemoved",
+				this.onDocRemoved.bind(this)
+			);
 	}
 
 	protected createComment(
@@ -121,7 +122,8 @@ export class SymbolCommentManager extends CommentsManager<
 		if (!element) {
 			return;
 		}
-		return new SymbolComment(
+
+		const comment = new SymbolComment(
 			element,
 			vscode.CommentMode.Preview,
 			{
@@ -129,6 +131,10 @@ export class SymbolCommentManager extends CommentsManager<
 			},
 			[thread]
 		);
+
+		thread.comments = [...thread.comments, comment];
+
+		return comment;
 	}
 
 	protected createCommentThread(
@@ -150,7 +156,6 @@ export class SymbolCommentManager extends CommentsManager<
 	}
 
 	private onDocAdded(doc: SymbolDoc) {
-		console.log("onDocAdded", doc);
 		const compareSymbols = (lhs: SymbolData, rhs: SymbolData) => {
 			const uriComp = lhs.uri.fsPath.localeCompare(rhs.uri.fsPath);
 			if (uriComp !== 0) {
@@ -164,44 +169,53 @@ export class SymbolCommentManager extends CommentsManager<
 		};
 
 		for (const relation of doc.relations) {
-			lspProvider.searchSymbol(relation.symbol).then((allSymbols) => {
-				allSymbols.sort(compareSymbols);
+			lspProvider
+				.searchSymbol(relation.symbol)
+				.then((lspSymbols) =>
+					tsProvider
+						.searchSymbol(relation.symbol)
+						.then((syms) => lspSymbols.concat(syms))
+				)
+				.then((allSymbols) => {
+					allSymbols.sort(compareSymbols);
 
-				const symbols = [];
-				for (const symbol of allSymbols) {
-					let isUnique = true;
-					for (let i = symbols.length - 1; i >= 0; i--) {
-						const existingSymbol = symbols[i];
-						if (
-							symbol.uri !== existingSymbol.uri ||
-							symbol.range.start.line >
-								existingSymbol.range.end.line
-						) {
-							// We assume here symbols are a single line. thus endLine == startLine for symbols
-							break;
+					const symbols = [];
+					for (const symbol of allSymbols) {
+						let isUnique = true;
+						for (let i = symbols.length - 1; i >= 0; i--) {
+							const existingSymbol = symbols[i];
+							if (
+								symbol.uri !== existingSymbol.uri ||
+								symbol.range.start.line >
+									existingSymbol.range.end.line
+							) {
+								// We assume here symbols are a single line. thus endLine == startLine for symbols
+								break;
+							}
+							if (
+								symbol.range.intersection(existingSymbol.range)
+							) {
+								// There's an intersection
+								isUnique = false;
+								break;
+							}
 						}
-						if (symbol.range.intersection(existingSymbol.range)) {
-							// There's an intersection
-							isUnique = false;
-							break;
+						if (isUnique) {
+							symbols.push(symbol);
 						}
 					}
-					if (isUnique) {
-						symbols.push(symbol);
-					}
-				}
 
-				for (const symbol of symbols) {
-					// Skip markdown files, otherwise you are pretty much unable to edit markdown
-					if (symbol.uri.fsPath.endsWith(".md")) {
-						continue;
+					for (const symbol of symbols) {
+						// Skip markdown files, otherwise you are pretty much unable to edit markdown
+						if (symbol.uri.fsPath.endsWith(".md")) {
+							continue;
+						}
+						this.insertComment(
+							doc,
+							new vscode.Location(symbol.uri, symbol.range)
+						);
 					}
-					this.insertComment(
-						doc,
-						new vscode.Location(symbol.uri, symbol.range)
-					);
-				}
-			});
+				});
 		}
 	}
 }
@@ -220,7 +234,7 @@ type Rendered<T> = T extends doc.Element
 	: T;
 
 function _renderElement(element: doc.Element): string {
-	return transformDoc(
+	const text = transformDoc(
 		element,
 		(array) => array,
 		(_, fields) => {
@@ -249,4 +263,6 @@ function _renderElement(element: doc.Element): string {
 		},
 		(value) => value
 	);
+
+	return text;
 }
