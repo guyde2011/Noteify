@@ -1,0 +1,9 @@
+{
+    "id": "noteify-obsidian-rpc",
+    "name": "Obsidian RPC",
+    "version": "0.0.1",
+    "minAppVersion": "0.15.0",
+    "description": "Remotely navigate and introspect your Obsidian from other apps.",
+    "author": "misha",
+    "isDesktopOnly": true
+}
