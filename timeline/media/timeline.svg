@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   fill="none"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="timeline.svg"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="14.217106"
+     inkscape:cx="20.784821"
+     inkscape:cy="23.352151"
+     inkscape:window-width="1910"
+     inkscape:window-height="1164"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1">
+    <inkscape:grid
+       id="grid2"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.5"
+       spacingy="0.5"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="4"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <path
+     id="path10"
+     style="fill:#424242;fill-opacity:1;stroke:none;stroke-width:0;stroke-dasharray:none"
+     d="M 12,3 A 6.5,6.5 0 0 0 5.5,9.5 6.5,6.5 0 0 0 12,16 6.5,6.5 0 0 0 18.5,9.5 6.5,6.5 0 0 0 12,3 Z m 0,2.166667 A 4.3333177,4.3333286 0 0 1 16.333333,9.5 4.3333177,4.3333286 0 0 1 12,13.833333 4.3333177,4.3333286 0 0 1 7.6666667,9.5 4.3333177,4.3333286 0 0 1 12,5.166667 Z m 0,1.443034 A 2.8888786,2.8888858 0 0 0 9.1097005,9.5 2.8888786,2.8888858 0 0 0 12,12.390299 2.8888786,2.8888858 0 0 0 14.8903,9.5 2.8888786,2.8888858 0 0 0 12,6.609701 Z" />
+  <g
+     id="path14"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#424242;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 20,16 18,14"
+       id="path15" />
+  </g>
+  <path
+     id="rect17"
+     style="stroke:#424242;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:normal"
+     d="m 3,18 h 15.5 v -1.5 l 3.5,3 -3.5,3 V 21 H 3 Z"
+     sodipodi:nodetypes="cccccccc" />
+</svg>

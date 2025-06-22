@@ -17,7 +17,26 @@
         "command": "timeline.helloWorld",
         "title": "Hello World"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "timeline-view",
+          "title": "Timeline View",
+          "icon": "media/timeline.svg"
+        }
+      ]
+    },
+    "views": {
+      "timeline-view": [
+        {
+          "id": "timeline-days",
+          "name": "Timeline Days",
+          "icon": "media/timeline.svg",
+          "contextualTitle": "Timeline Days Contextual Title"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
