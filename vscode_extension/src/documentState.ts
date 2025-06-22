@@ -3,7 +3,7 @@ import * as doc from "./api/document";
 import { DocumentProcessor } from "./api/frontend";
 import { DocumentUpdateEvent, DocumentRemovedEvent } from "./api/events";
 import { transformDoc } from "./documentTree";
-import { transformTree } from "./utils";
+import { flattenArray, objectFromFields, transformTree } from "./utils";
 
 export type DocFile = string;
 export type ElementId = number;
@@ -15,9 +15,9 @@ export type DiffEntry<T> =
 	| { state: "changed"; value: T };
 
 export type Diff<T> = T extends doc.Element
-	? DiffEntry<{ [key in keyof T]: Diff<T[key]> }>
+	? DiffEntry<{ [key in keyof T & string]: Diff<T[key]> }>
 	: T extends doc.Element[]
-	? { [key in keyof T]: Diff<T[key]> }
+	? Diff<T[keyof T & number]>[]
 	: T;
 
 export namespace Diff {
@@ -30,12 +30,14 @@ export namespace Diff {
 	}
 }
 export type WithId<T> = T extends HasId
-	? { [key in keyof T]: WithId<T[key]> } & { elementId: ElementId }
+	? {
+			[key in keyof T & string]: WithId<T[key]>;
+	  } & { elementId: ElementId }
 	: T extends HasId[]
-	? { [key in keyof T]: WithId<T[key]> }
+	? WithId<T[keyof T & number]>[]
 	: T;
 
-type WorkspaceStateEvents = {
+export type WorkspaceStateEvents = {
 	elementAdded: [element: WithId<doc.Element>];
 	elementRemoved: [element: WithId<doc.Element>];
 };
@@ -45,69 +47,36 @@ export class WorkspaceState
 	implements DocumentProcessor
 {
 	documents: Map<DocFile, WithId<doc.Root>> = new Map();
-	elements: Map<ElementId, doc.Element> = new Map();
+	elements: Map<ElementId, WithId<doc.Element>> = new Map();
 
 	onDocumentUpdated(event: DocumentUpdateEvent): void {
 		const file = event.doc.filename;
-		const document = this.documents.get(file);
-		if (!document) {
-			this.documents.set(file, this.withIds(event.doc));
-		} else {
-			const diffs = this.compareDocuments(document, event.doc);
-			const oldIds = new Map(
-				getDocElements(document).map((element) => [
-					element.elementId,
-					element,
-				])
-			);
-			const newIds = transformTree<Diff<WithId<doc.Element>>, number[]>(
-				diffs,
-				(node) =>
-					node.state === "changed"
-						? new Array<Diff<WithId<doc.Element>>>().concat.apply(
-								[],
-								Object.entries(node.value).map(([_, value]) => {
-									if (doc.isElementArray(value)) {
-										return value as unknown as Diff<
-											WithId<doc.Element>
-										>[];
-									} else if (doc.isElement(value)) {
-										return [
-											value as unknown as Diff<
-												WithId<doc.Element>
-											>,
-										];
-									} else {
-										return [] as Diff<
-											WithId<doc.Element>
-										>[];
-									}
-								})
-						  )
-						: [],
-				(element, children) => {
-					const ret: number[] = new Array<number>().concat.apply(
-						[],
-						children
-					);
-					if (element.state === "changed") {
-						ret.push(element.value.elementId);
-						this.emit(
-							"elementAdded",
-							element.value as WithId<doc.Element>
-						);
-					}
-					return ret;
-				}
-			);
+		let document = this.documents.get(file) || {
+			kind: "root",
+			elementId: -1,
+			blocks: [],
+			filename: file,
+		};
 
-			const newSet = new Set(newIds);
-			const oldSet = new Set(oldIds);
+		const diffs = this.compareDocuments(document, event.doc);
+		const oldIds = new Map(
+			getDocElements(document).map((element) => [
+				element.elementId,
+				element,
+			])
+		);
+		const newIds = diffs.map((diff) => diff.elementId);
 
-			for (const [id, element] of oldSet) {
-				if (!newSet.has(id)) {
-					this.emit("elementRemoved", element);
-				}
+		for (const element of diffs) {
+			this.emit("elementAdded", element);
+		}
+
+		const newSet = new Set(newIds);
+		const oldSet = new Set(oldIds);
+
+		for (const [id, element] of oldSet) {
+			if (!newSet.has(id) && id >= 0) {
+				this.emit("elementRemoved", element);
 			}
 		}
 	}
@@ -122,16 +91,19 @@ export class WorkspaceState
 		}
 	}
 
+	getElement(elementId: ElementId): WithId<doc.Element> | undefined {
+		return this.elements.get(elementId);
+	}
+
 	private withIds(root: doc.Root): WithId<doc.Root> {
 		return transformDoc<WithId<doc.Element>>(
 			root,
 			(children) => children,
 			(_, children) =>
-				Object.assign(
-					{},
-					[["elementId"], this.nextElementId()],
-					...children.map(([key, value]) => [[key], value])
-				),
+				objectFromFields([
+					["elementId", this.nextElementId()],
+					...children,
+				]) as unknown as WithId<doc.Element>,
 			(property) => property
 		) as WithId<doc.Root>;
 	}
@@ -144,7 +116,7 @@ export class WorkspaceState
 	private compareDocuments(
 		_oldRoot: WithId<doc.Root>,
 		newRoot: doc.Root
-	): Diff<WithId<doc.Root>> {
+	): WithId<doc.Element>[] {
 		// const transformed = transformTree(
 		// 	Child.index(0, [oldRoot, newRoot]),
 		// 	([oldNode. newNode]) => {
@@ -171,40 +143,41 @@ export class WorkspaceState
 		//     oldNode.
 		// })
 		// TODO: Real implementation that doesn't say that everything changed
+		const withIds = this.withIds(newRoot);
 		return transformDoc(
-			this.withIds(newRoot),
-			(elements) => elements,
-			(_element, children) =>
-				Diff.changed(
-					Object.assign(
-						{},
-						...children.map(([key, value]) => [[key], value])
-					)
-				),
-			(property) => property
+			withIds,
+			(elements) => flattenArray(elements),
+			(element, children) => {
+				const output: WithId<doc.Root>[] = flattenArray(children.map(([_key, value]) => value));
+				output.push(element);
+				return output;
+			},
+			(_) => [] as WithId<doc.Element>[]
 		);
 	}
 }
 
 function getDocElements(root: WithId<doc.Root>): WithId<doc.Element>[] {
-	return transformDoc<
+	const out = transformDoc<
 		WithId<doc.Element>[],
 		WithId<doc.Element>[],
 		WithId<doc.Element>[],
 		WithId<doc.Element>
 	>(
 		root,
-		(elems) => new Array<WithId<doc.Element>>().concat.apply(elems),
+		(elems) => flattenArray(elems),
 		(element, children) => {
-			const array = new Array<WithId<doc.Element>>().concat.apply(
-				[],
-				children.map(([_, value]) => value)
+			const array = flattenArray(
+				children
+					.filter(([_, value]) => doc.isElementArray(value))
+					.map(([_, value]) => value)
 			);
 			array.push(element);
 			return array;
 		},
 		() => []
 	);
+	return out;
 }
 
 // TODO: Move to session

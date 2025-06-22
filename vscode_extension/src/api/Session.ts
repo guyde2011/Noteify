@@ -1,11 +1,7 @@
 import getAllBackends from "./allBackends";
 import { BackendEvent } from "./events";
 import { DocumentProcessor } from "./frontend";
-import {
-	BackendStatus,
-	Backend,
-	BackendInstance,
-} from "./interface";
+import { BackendStatus, Backend, BackendInstance } from "./interface";
 import * as vscode from "vscode";
 
 /**
@@ -48,9 +44,18 @@ export class SessionFrontendRequestHandle {
 }
 */
 
+export enum LoadStatus {
+	Ok = "ok",
+	NoWorkspace = "no workspace",
+}
+
+type SessionBackend = {
+	isOpen: boolean;
+	backend?: BackendInstance;
+};
+
 export class Session {
-	openBackendInstances: BackendInstance[];
-	backendInstancesOpen: boolean[];
+	backendInstances: SessionBackend[];
 	allBackends: Backend[];
 	frontend: DocumentProcessor;
 
@@ -61,12 +66,11 @@ export class Session {
 	 * It sits between the backend and frontend implementations.
 	 */
 	constructor(frontend: DocumentProcessor) {
-		this.openBackendInstances = [];
-		// backends are all closed, initially
-		this.backendInstancesOpen = [];
 		this.allBackends = getAllBackends();
-		for (let i = 0; i < this.allBackends.length; i++)
-			this.backendInstancesOpen.push(false);
+
+		// backends are all closed, initially
+		this.backendInstances = this.allBackends.map(() => ({ isOpen: false }));
+
 		this.frontend = frontend;
 		this.listenerSubscriptions = [];
 
@@ -169,35 +173,50 @@ export class Session {
 	}
 	*/
 
-	onBackendEvent(instance: BackendInstance, event: BackendEvent): void {
+	onBackendEvent(
+		index: number,
+		instance: BackendInstance,
+		event: BackendEvent
+	): void {
 		switch (event.op) {
-			case "open": {
-				this.openBackendInstances.push(instance);
-			} break;
-			case "send": {
-				this.frontend.onDocumentUpdated(event);
-			} break;
-			case "remove": {
-				this.frontend.onDocumentRemoved(event);
-			} break;
+			case "open":
+				{
+					this.backendInstances[index].backend = instance;
+				}
+				break;
+			case "send":
+				{
+					this.frontend.onDocumentUpdated(event);
+				}
+				break;
+			case "remove":
+				{
+					this.frontend.onDocumentRemoved(event);
+				}
+				break;
 		}
 	}
 
 	/**
 	 * load() may be called multiple times, and will always try loading every possible documentation backend.
 	 */
-	async load(): Promise<"no workspace" | "ok"> {
+	async load(): Promise<LoadStatus> {
 		// We need the workspace to have a URI
-		const workspaceRawUri = vscode.workspace.workspaceFile;
-		if (workspaceRawUri === undefined) return "no workspace";
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			return LoadStatus.NoWorkspace;
+		}
 
 		// Some of the backends that weren't valid before might become valid now; for example, listening sockets that have been opened.
-		let tasks = [];
+		const tasks = [];
 		for (let i = 0; i < this.allBackends.length; i++) {
+			const index = i;
 			const backend = this.allBackends[i];
 
 			// skip over already open backends
-			if (this.backendInstancesOpen[i]) continue;
+			if (this.backendInstances[i].isOpen) {
+				continue;
+			}
 
 			// try to initialize uninitialized backends
 			if (!backend.initialized) {
@@ -210,20 +229,35 @@ export class Session {
 			}
 
 			// open the backend
-			this.backendInstancesOpen[i] = true;
-			const task = backend.open(this.onBackendEvent.bind(this)).then(result => {
-				if (result !== BackendStatus.Success) {
-					console.log(`open for backend ${backend.name} failed with status code ${BackendStatus.toString(result)}`);
-					this.backendInstancesOpen[i] = false;
-				} else {
-					console.log(`Backend ${backend.name} opened successfully`);
-				}
-			});
+			this.backendInstances[i].isOpen = true;
+			const eventHandler = (
+				instance: BackendInstance,
+				event: BackendEvent
+			) => this.onBackendEvent(index, instance, event);
+			const task = backend
+				.open(eventHandler.bind(this))
+				.then((result) => {
+					if (result !== BackendStatus.Success) {
+						console.log(
+							`open for backend ${
+								backend.name
+							} failed with status code ${BackendStatus.toString(
+								result
+							)}`
+						);
+						this.backendInstances[i].isOpen = false;
+						this.backendInstances[i].backend = undefined;
+					} else {
+						console.log(
+							`Backend ${backend.name} opened successfully`
+						);
+					}
+				});
 			tasks.push(task);
 		}
 
 		await Promise.all(tasks);
-		return "ok";
+		return LoadStatus.Ok;
 	}
 
 	dispose(): void {
@@ -234,13 +268,15 @@ export class Session {
 		this.listenerSubscriptions = [];
 
 		// close backend workspaces
-		for (let instance of this.openBackendInstances) {
-			instance.dispose();
+		for (const backendInfo of this.backendInstances) {
+			backendInfo.backend?.dispose();
+			backendInfo.backend = undefined;
+			backendInfo.isOpen = false;
 		}
-		this.openBackendInstances = [];
+
+		this.backendInstances = [];
 
 		// other
 		this.allBackends = [];
-		this.backendInstancesOpen = [];
 	}
 }

@@ -1,20 +1,25 @@
+import { Uri } from "vscode";
 import * as doc from "./api/document";
-import { ElementId, WithId, WorkspaceState } from "./documentState";
+import {
+	ElementId,
+	WithId,
+	WorkspaceState,
+	WorkspaceStateEvents,
+} from "./documentState";
 import { EventEmitter } from "stream";
+import { EventSubscriber } from "./utils";
 
-type Symbol = string;
-
-enum DocRelation {
+export enum DocRelation {
 	Title = "title",
 	Link = "link",
 }
 
-type SymbolIdentifier = {
+export type SymbolIdentifier = {
 	name: string;
 	uri?: string;
 };
 
-type SymbolRelation = {
+export type SymbolRelation = {
 	symbol: SymbolIdentifier;
 	relation: DocRelation;
 };
@@ -24,23 +29,30 @@ export type SymbolDoc = {
 	element: ElementId;
 };
 
-type SymbolManagerEvents = {
+export type SymbolManagerEvents = {
 	docAdded: [doc: SymbolDoc];
 	docRemoved: [doc: SymbolDoc];
 };
 
+// TODO: Properly index symbols by name/file.
 export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
-	private symbolDocs: Map<ElementId, SymbolDoc> = new Map();
+	private docByElementId: Map<ElementId, SymbolDoc> = new Map();
+	private subscriber: EventSubscriber<WorkspaceStateEvents> =
+		new EventSubscriber();
 
-	constructor(private state: WorkspaceState) {
+	constructor(public readonly state: WorkspaceState) {
 		super();
-		state.on("elementAdded", this.onElementAdded);
-		state.on("elementRemoved", this.onElementRemoved);
+		this.subscriber
+			.subscribe(state, "elementAdded", this.onElementAdded.bind(this))
+			.subscribe(
+				state,
+				"elementRemoved",
+				this.onElementRemoved.bind(this)
+			);
 	}
 
 	dispose() {
-		this.state.removeListener("elementAdded", this.onElementAdded);
-		this.state.removeListener("elementRemoved", this.onElementRemoved);
+		this.subscriber.dispose();
 	}
 
 	addDoc(
@@ -54,7 +66,7 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 			element: elementId,
 			relations: relations,
 		};
-		this.symbolDocs.set(elementId, symbolDoc);
+		this.docByElementId.set(elementId, symbolDoc);
 
 		this.emit("docAdded", symbolDoc);
 
@@ -62,7 +74,7 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 	}
 
 	removeDoc(elementId: ElementId): SymbolDoc | undefined {
-		const symbolDoc = this.symbolDocs.get(elementId);
+		const symbolDoc = this.docByElementId.get(elementId);
 		if (!symbolDoc) {
 			return;
 		}
@@ -76,9 +88,6 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 				const symbols = extractSymbolRelations(element);
 				this.addDoc(element.elementId, symbols);
 				break;
-			case "link":
-				// TODO: Implement
-				break;
 		}
 	}
 
@@ -87,90 +96,93 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 	}
 }
 
-function extractSymbolRelations(element: doc.Section): SymbolRelation[] {
-	// TODO: Extract from links and such.
+function tryExtractUriSymbol(uri: Uri): SymbolIdentifier | undefined {
+	if (
+		uri.scheme &&
+		!["", "file", "code"].find((scheme) => uri.scheme === scheme)
+	) {
+		return;
+	}
+	const filePath = uri.path;
+	const symbol = uri.fragment;
+	// TODO: Validate this is not a link to a non symbol :(
+	return {
+		name: symbol,
+		uri: filePath,
+	};
+}
+
+function tryExtractSymbol(
+	text: string,
+	clean: boolean = true
+): SymbolIdentifier | undefined {
+	if (clean) {
+		text = text.trim();
+	}
+
+	// TODO: better symbol check, with seperate uri check on failure
+	if (!isSymbolLike(text)) {
+		return;
+	}
+
+	const uri = Uri.parse(text);
+	if (uri) {
+		return tryExtractUriSymbol(uri);
+	}
+
+	// TODO: A better check for identifying <filename>:<symbol>
+	const parts = text.split(/[^:]:[^:]/);
+	if (parts.length === 1) {
+		return {
+			name: parts[0],
+		};
+	} else if (parts.length === 2) {
+		const [path, name] = parts;
+		return {
+			name: name,
+			uri: path,
+		};
+	}
+}
+
+function extractSymbolRelations(element: doc.Element): SymbolRelation[] {
+	return _recursiveExtractSymbolRelations(element, true);
+}
+
+function _recursiveExtractSymbolRelations(
+	element: doc.Element,
+	traverseSection: boolean
+): SymbolRelation[] {
+	const relations: SymbolRelation[] = [];
 	// Iterate over title parts
-	for (const child of element.children) {
-		switch (child.kind) {
-			case "link":
-
-				break;
-			case "text":
-				const cleanContent = child.content.trim();
-				if (isSymbolLike())
-		}
-	}
-}
-
-/*
-function parseSymbol(rawSymbol: string): SymbolIdentifier | undefined {
-	try {
-		const uri = Uri.parse(rawSymbol);
-		if (
-			uri.scheme === "" ||
-			(uri.scheme === "file" && isSymbolLike(uri.fragment))
-		) {
-			return { name: uri.fragment, uri: uri.fsPath };
-		}
-	} catch {
-		if (isSymbolLike(rawSymbol)) {
-			return { name: rawSymbol };
-		}
-	}
-}
-*/
-
-/*
-class SymbolProcessor implements DocumentProcessor {
-	private symbolDocs: Map<SectionId, SymbolDoc[]> = new Map();
-
-	private extractSymbols(section: Section): SymbolDoc[] {
-		const output = [];
-		if (isSymbolLike(cleanTitle)) {
-			const symbol = parseSymbol(cleanTitle);
+	switch (element.kind) {
+		case "link":
+			const symbol = tryExtractSymbol(element.destination);
 			if (symbol) {
-				output.push({
-					symbol: symbol,
-					relation: DocRelation.Title,
-				});
+				relations.push({ relation: DocRelation.Link, symbol: symbol });
 			}
-		}
-		for (const child of section.children) {
-			switch (child.kind) {
-*/
-/*
-				case "link": {
-					const symbol = parseSymbol(child.uri);
-					if (symbol) {
-						output.push({
-							symbol: symbol,
-							relation: DocRelation.Link,
-						});
-					}
-                    break;
-				}
-				case "title": {
-					const symbol = parseSymbol(child.content);
-					if (symbol) {
-						output.push({
-							symbol: symbol,
-							relation: DocRelation.Title,
-						});
-					}
-				}
-				*/
-/*
+			break;
+		case "text":
+			break;
+		case "section":
+			if (!traverseSection) {
+				break;
 			}
-		}
-		return output;
+		case "block":
+		case "bold":
+		case "italics":
+			const childrenRel = element.children.map((subChild) =>
+				_recursiveExtractSymbolRelations(subChild, false)
+			);
+			for (const childRel of childrenRel) {
+				relations.concat(childRel);
+			}
+			break;
 	}
+	return relations;
 }
 
-class SymbolCommentProcessor extends SymbolProcessor {}
-*/
-
-/*
 function isSymbolLike(text: string): boolean {
 	return text.trim().search(new RegExp("[ \t{}\\\\'\"]")) === -1;
 }
-*/
+

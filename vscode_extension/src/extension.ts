@@ -1,83 +1,39 @@
 import * as vscode from "vscode";
 import {
-	initComments,
-	CommentDoc,
-	symbolCommentController,
+	initSymbolController,
+	ResearchComment,
+	SymbolCommentManager,
 } from "./editorComment";
-import { Session } from "./api/Session";
-import { BackendStatus } from "./api/interface";
-import { DocumentUpdateEvent, DocumentRemovedEvent } from "./api/events";
+import { LoadStatus, Session } from "./api/Session";
+import { WorkspaceState } from "./documentState";
+import { SymbolManager } from "./symbol";
+import { writeError } from "./utils";
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
 
-	initComments();
+	initSymbolController();
 
-	const session = new Session({
-		onDocumentUpdated(event: DocumentUpdateEvent) {
-			console.log("update:", event);
-		},
-		onDocumentRemoved(event: DocumentRemovedEvent) {
-			console.log("removed:", event);
-		},
-		/*
-		addDoc(textDocument: vscode.TextDocument, requestHandle: SessionFrontendRequestHandle, lineOrSymbol: number | string, markdown: string): CommentDoc | null {
-			console.log(`addDoc ${lineOrSymbol} ${markdown}`);
-
-			if (typeof lineOrSymbol !== "number") {
-				// can't create
-				return null;
-			}
-
-			const lineIndex = lineOrSymbol - 1;
-
-			if (lineIndex < 0 || lineIndex >= textDocument.lineCount) {
-				// can't create
-				return null;
-			}
-
-			if (textDocument.uri.scheme === "comment") {
-				// don't want to create comments for comments
-				return null;
-			}
-
-			const thread = symbolCommentController!.createCommentThread(textDocument.uri, textDocument.lineAt(lineIndex).range, []);
-			const comment = new CommentDoc(markdown, requestHandle, thread);
-			thread.canReply = false;
-			thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
-			thread.comments = [comment];
-			return comment;
-		},
-		delDoc(comment: CommentDoc | null): void {
-			if (comment === null)
-				return;
-
-			comment.parentThread.dispose();
-		},
-		changeDoc(comment: CommentDoc | null, markdown: string): void {
-			if (comment === null)
-				return;
-
-			comment.originMarkdown = markdown;
-			comment.markdown = markdown;
-			comment.parentThread.comments = comment.parentThread.comments;
-		},
-		*/
-	});
+	const state = new WorkspaceState();
+	const session = new Session(state);
+	const symbolManager = new SymbolManager(state);
+	const commentManager = new SymbolCommentManager(symbolManager);
 	context.subscriptions.push(session);
 
-	let loadDocs = vscode.commands.registerCommand("noteify.loadDocs", () => {
-		console.log("calling noteify.loadDocs");
-		session.load().then((status) => {
-			if (status == "ok") {
+	let loadDocs = vscode.commands.registerCommand(
+		"noteify.loadDocs",
+		async () => {
+			console.log("calling noteify.loadDocs");
+			const status = await session.load();
+			if (status === LoadStatus.Ok) {
 				console.log("successfuly returned from noteify.loadDocs");
 			} else {
-				vscode.window.showInformationMessage(
-					`noteify.loadDocs returned status ${status}`
+				writeError(
+					`noteify.loadDocs returned status '${status}'`
 				);
 			}
-		});
-	});
+		}
+	);
 	context.subscriptions.push(loadDocs);
 
 	vscode.commands.registerCommand(
@@ -108,19 +64,21 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand(
 		"noteify.editNote",
 		(comment: vscode.Comment) => {
-			if (!(comment instanceof CommentDoc)) {
+			if (!(comment instanceof ResearchComment)) {
 				vscode.window.showInformationMessage("Unexpected comment type");
 				return;
 			}
 			comment.mode = vscode.CommentMode.Editing;
-			comment.parentThread.comments = comment.parentThread.comments;
+			for (const parent of comment.parents) {
+				parent.comments = parent.comments;
+			}
 		}
 	);
 
 	vscode.commands.registerCommand(
 		"noteify.jumpTo",
 		(comment: vscode.Comment) => {
-			if (!(comment instanceof CommentDoc)) {
+			if (!(comment instanceof ResearchComment)) {
 				vscode.window.showInformationMessage("Unexpected comment type");
 				return;
 			}
@@ -137,11 +95,12 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand(
 		"noteify.saveNote",
 		(comment: vscode.Comment) => {
-			if (!(comment instanceof CommentDoc)) {
+			if (!(comment instanceof ResearchComment)) {
 				vscode.window.showInformationMessage("Unexpected comment type");
 				return;
 			}
 			comment.mode = vscode.CommentMode.Preview;
+			// TODO: Implement
 			/*
 		comment.requestHandle.edit(comment.markdown).then(status => {
 			if (status != BackendStatus.Success) {

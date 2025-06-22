@@ -22,6 +22,14 @@ export namespace Child {
 	}
 }
 
+type AllValues<E> =
+	| E
+	| (E extends doc.Element[]
+			? E[keyof E]
+			: E extends doc.Element
+			? AllValues<keyof E>
+			: never);
+
 export function transformDoc<
 	M extends C,
 	C = any,
@@ -31,39 +39,34 @@ export function transformDoc<
 	root: E,
 	transformArray: (children: M[]) => A,
 	transformElement: (element: E, children: [string, C][]) => M,
-	transformProperty: (value: any) => C
+	transformProperty: (value: AllValues<E>) => C
 ): M {
 	const transformed = transformElementTree<C, E>(root, (elem, children) => {
-		let transformed: C;
 		if (doc.isElementArray(elem)) {
-			transformed = transformArray(
+			return transformArray(
 				children
 					.filter((child) => child.childKind === "index")
 					.map((child) => child.child as M)
 			);
 		} else if (doc.isElement(elem)) {
-			transformed = transformElement(
-				elem as E,
+			return transformElement(
+				elem,
 				children
 					.filter((child) => child.childKind === "named")
 					.map((child) => [child.name, child.child])
 			);
 		} else {
-			transformed = transformProperty(elem);
+			return transformProperty(elem);
 		}
-		return {
-			...elem,
-			child: transformed,
-		};
 	});
 	return transformed as M;
 }
 
 export function transformElementTree<M, E extends doc.Element = doc.Element>(
 	root: E,
-	transform: (element: any, children: Child<M>[]) => M
+	transform: (element: AllValues<E>, children: Child<M>[]) => M
 ): M {
-	const transformed = transformTree<Child<doc.Element | string>, Child<M>>(
+	const transformed = transformTree<Child<AllValues<E>>, Child<M>>(
 		Child.index(0, root),
 		(current) => {
 			if (doc.isElementArray(current.child)) {
@@ -71,18 +74,17 @@ export function transformElementTree<M, E extends doc.Element = doc.Element>(
 					Child.index(index, elem)
 				);
 			} else if (doc.isElement(current.child)) {
-				return Object.entries(current.child)
-					.filter(([key]) => key)
-					.map(([key, elem]) => Child.named(key, elem));
+				return Object.entries(current.child).map(([key, elem]) =>
+					Child.named(key, elem)
+				);
 			} else {
 				return [];
 			}
 		},
 		(elem, children) => {
-			return {
-				...elem,
-				child: transform(elem, children),
-			};
+			return Object.assign({}, elem, {
+				child: transform(elem.child, children),
+			});
 		}
 	);
 	return transformed.child as M;
