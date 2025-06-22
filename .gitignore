@@ -3,3 +3,8 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+# obsidian
+main.js
+*.map
+data.json
+.DS_Store
