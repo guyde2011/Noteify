@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "vscode_extension"
+		},
+		{
+			"path": "obsidian_extension"
+		}
+	],
+	"settings": {}
+}
