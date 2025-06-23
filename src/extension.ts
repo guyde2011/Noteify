@@ -18,9 +18,14 @@ export function activate(context: vscode.ExtensionContext) {
 	const session = new Session(state);
 	const symbolManager = new SymbolManager(state);
 	const commentManager = new SymbolCommentManager(symbolManager);
-	context.subscriptions.push(session);
 
-	let loadDocs = vscode.commands.registerCommand(
+	context.subscriptions.push(session, symbolManager, commentManager);
+
+	const _registerCommand = (command: string, callback: (...args: never[]) => any) => { 
+		context.subscriptions.push(vscode.commands.registerCommand(command, callback));
+	};
+
+	_registerCommand(
 		"noteify.loadDocs",
 		async () => {
 			console.log("calling noteify.loadDocs");
@@ -34,9 +39,8 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	);
-	context.subscriptions.push(loadDocs);
 
-	vscode.commands.registerCommand(
+	_registerCommand(
 		"noteify.deleteThread",
 		(thread: vscode.CommentThread) => {
 			vscode.window.showInformationMessage("Unsupported");
@@ -46,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	vscode.commands.registerCommand(
+	_registerCommand(
 		"noteify.deleteNote",
 		(comment: vscode.Comment) => {
 			vscode.window.showInformationMessage("Unsupported");
@@ -61,7 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	vscode.commands.registerCommand(
+	_registerCommand(
 		"noteify.editNote",
 		(comment: vscode.Comment) => {
 			if (!(comment instanceof ResearchComment)) {
@@ -75,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	vscode.commands.registerCommand(
+	_registerCommand(
 		"noteify.jumpTo",
 		(comment: vscode.Comment) => {
 			if (!(comment instanceof ResearchComment)) {
@@ -92,7 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	vscode.commands.registerCommand(
+	_registerCommand(
 		"noteify.saveNote",
 		(comment: vscode.Comment) => {
 			if (!(comment instanceof ResearchComment)) {
@@ -118,7 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	vscode.commands.registerCommand("noteify.addSymbolDoc", () => {
+	_registerCommand("noteify.addSymbolDoc", () => {
 		vscode.window.showInformationMessage("Unsupported");
 		/*
 		const editor = vscode.window.activeTextEditor;
