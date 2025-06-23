@@ -4,7 +4,7 @@ import {
 	ElementId,
 	WithId,
 	WorkspaceState,
-	WorkspaceStateEvents,
+	WorkspaceFrontendEvents,
 } from "./documentState";
 import { EventEmitter } from "stream";
 import { EventSubscriber, flattenArray } from "./utils";
@@ -38,7 +38,7 @@ export type SymbolManagerEvents = {
 // TODO: Properly index symbols by name/file.
 export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 	private docByElementId: Map<ElementId, SymbolDoc> = new Map();
-	private subscriber: EventSubscriber<WorkspaceStateEvents> =
+	private subscriber: EventSubscriber<WorkspaceFrontendEvents> =
 		new EventSubscriber();
 
 	constructor(public readonly state: WorkspaceState) {
@@ -79,7 +79,6 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 		if (!symbolDoc) {
 			return;
 		}
-		this.emit("docRemoved", symbolDoc);
 		return symbolDoc;
 	}
 

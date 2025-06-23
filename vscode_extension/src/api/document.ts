@@ -1,3 +1,6 @@
+export type SectionId = number;
+export type File = string;
+
 export interface BlockParent {
     blocks: Block[];
 }
@@ -11,7 +14,7 @@ export type Section = {
     level: number;
     blocks: Block[];
     children: Inline[];
-    id: number;
+    id: SectionId;
 };
 
 export type ContentBlock = {
@@ -45,7 +48,7 @@ export type Block = Section | ContentBlock;
 
 export type Root = {
     kind: "root";
-    filename: string;
+    filename: File;
     blocks: Block[];
 };
 

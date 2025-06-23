@@ -9,9 +9,11 @@ import { WorkspaceState } from "./documentState";
 import { SymbolManager } from "./symbol";
 import { writeError } from "./utils";
 
+export var extensionUri: vscode.Uri | undefined;
+
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
-
+	extensionUri = context.extensionUri;
 	initSymbolController();
 
 	const state = new WorkspaceState();
@@ -21,40 +23,35 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(session, symbolManager, commentManager);
 
-	const _registerCommand = (command: string, callback: (...args: never[]) => any) => { 
-		context.subscriptions.push(vscode.commands.registerCommand(command, callback));
+	const _registerCommand = (
+		command: string,
+		callback: (...args: never[]) => any
+	) => {
+		context.subscriptions.push(
+			vscode.commands.registerCommand(command, callback)
+		);
 	};
 
-	_registerCommand(
-		"noteify.loadDocs",
-		async () => {
-			console.log("calling noteify.loadDocs");
-			const status = await session.load();
-			if (status === LoadStatus.Ok) {
-				console.log("successfuly returned from noteify.loadDocs");
-			} else {
-				writeError(
-					`noteify.loadDocs returned status '${status}'`
-				);
-			}
+	_registerCommand("noteify.loadDocs", async () => {
+		console.log("calling noteify.loadDocs");
+		const status = await session.load();
+		if (status === LoadStatus.Ok) {
+			console.log("successfuly returned from noteify.loadDocs");
+		} else {
+			writeError(`noteify.loadDocs returned status '${status}'`);
 		}
-	);
+	});
 
-	_registerCommand(
-		"noteify.deleteThread",
-		(thread: vscode.CommentThread) => {
-			vscode.window.showInformationMessage("Unsupported");
-			/*
+	_registerCommand("noteify.deleteThread", (thread: vscode.CommentThread) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		thread.dispose();
 		*/
-		}
-	);
+	});
 
-	_registerCommand(
-		"noteify.deleteNote",
-		(comment: vscode.Comment) => {
-			vscode.window.showInformationMessage("Unsupported");
-			/*
+	_registerCommand("noteify.deleteNote", (comment: vscode.Comment) => {
+		vscode.window.showInformationMessage("Unsupported");
+		/*
 		for (const parent of comment.parents) {
 			parent.comments = parent.comments.filter(cmt => (cmt as ResearchComment).id !== comment.id);
 			if (parent.comments.length === 0) {
@@ -62,50 +59,41 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}
 		*/
-		}
-	);
+	});
 
-	_registerCommand(
-		"noteify.editNote",
-		(comment: vscode.Comment) => {
-			if (!(comment instanceof ResearchComment)) {
-				vscode.window.showInformationMessage("Unexpected comment type");
-				return;
-			}
-			comment.mode = vscode.CommentMode.Editing;
-			for (const parent of comment.parents) {
-				parent.comments = parent.comments;
-			}
+	_registerCommand("noteify.editNote", (comment: vscode.Comment) => {
+		if (!(comment instanceof ResearchComment)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
 		}
-	);
+		comment.mode = vscode.CommentMode.Editing;
+		for (const parent of comment.parents) {
+			parent.comments = parent.comments;
+		}
+	});
 
-	_registerCommand(
-		"noteify.jumpTo",
-		(comment: vscode.Comment) => {
-			if (!(comment instanceof ResearchComment)) {
-				vscode.window.showInformationMessage("Unexpected comment type");
-				return;
-			}
-			/*
+	_registerCommand("noteify.jumpTo", (comment: vscode.Comment) => {
+		if (!(comment instanceof ResearchComment)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
+		}
+		/*
 		comment.requestHandle.jumpTo().then(status => {
 			if (status != BackendStatus.Success) {
 				vscode.window.showErrorMessage(`Jump failed with error ${BackendStatusToString(status)}`);
 			}
 		})
 		*/
-		}
-	);
+	});
 
-	_registerCommand(
-		"noteify.saveNote",
-		(comment: vscode.Comment) => {
-			if (!(comment instanceof ResearchComment)) {
-				vscode.window.showInformationMessage("Unexpected comment type");
-				return;
-			}
-			comment.mode = vscode.CommentMode.Preview;
-			// TODO: Implement
-			/*
+	_registerCommand("noteify.saveNote", (comment: vscode.Comment) => {
+		if (!(comment instanceof ResearchComment)) {
+			vscode.window.showInformationMessage("Unexpected comment type");
+			return;
+		}
+		comment.mode = vscode.CommentMode.Preview;
+		// TODO: Implement
+		/*
 		comment.requestHandle.edit(comment.markdown).then(status => {
 			if (status != BackendStatus.Success) {
 				vscode.window.showErrorMessage(`Edit failed with error ${BackendStatusToString(status)}`);
@@ -119,8 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
 			comment.parentThread.comments = comment.parentThread.comments;
 		});
 		*/
-		}
-	);
+	});
 
 	_registerCommand("noteify.addSymbolDoc", () => {
 		vscode.window.showInformationMessage("Unsupported");

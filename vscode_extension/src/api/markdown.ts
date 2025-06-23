@@ -2,10 +2,15 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmFromMarkdown } from "mdast-util-gfm";
 import { gfm } from "micromark-extension-gfm";
 import * as Md from "mdast";
-import * as Doc from "./document";
+import * as doc from "./document";
+import { Position, Range } from "vscode";
 
-export class IdAllocator {
-	nextId = 0;
+export interface IdAllocator {
+	allocate(): number;
+}
+
+export class SerialIdAllocator implements IdAllocator {
+	private nextId = 0;
 	allocate(): number {
 		return this.nextId++;
 	}
@@ -19,15 +24,17 @@ function parseMarkdown(contents: string): Md.Root {
 	return tree;
 }
 
+// TODO: Convert to a flat (non-recursive) implementation
 function buildDocumentRec(
 	md: Md.Node,
-	sectionStack: (Doc.Root | Doc.Section)[],
-	inlineParentStack: Doc.InlineParent[],
-	idAllocator: IdAllocator
-): Doc.Root | null {
-	const pushToSection = (b: Doc.Block) =>
+	sectionStack: (doc.Root | doc.Section)[],
+	inlineParentStack: doc.InlineParent[],
+	idAllocator: IdAllocator,
+	locationMapping: Map<doc.SectionId, Range>
+): doc.Root | null {
+	const pushToSection = (b: doc.Block) =>
 		sectionStack[sectionStack.length - 1].blocks.push(b);
-	const pushInline = (b: Doc.Inline) =>
+	const pushInline = (b: doc.Inline) =>
 		inlineParentStack[inlineParentStack.length - 1].children.push(b);
 	const iterateChildren = (p: Md.Parent) => {
 		for (const child of p.children) {
@@ -35,7 +42,8 @@ function buildDocumentRec(
 				child,
 				sectionStack,
 				inlineParentStack,
-				idAllocator
+				idAllocator,
+				locationMapping
 			);
 			// null means error
 			if (result === null) {
@@ -46,7 +54,7 @@ function buildDocumentRec(
 	};
 	const handleGenericInline = (
 		p: Md.Parent,
-		doc: Doc.Inline & Doc.InlineParent
+		doc: doc.Inline & doc.InlineParent
 	): null | true => {
 		// We assume we are inline
 		if (!inlineParentStack.length) {
@@ -64,6 +72,35 @@ function buildDocumentRec(
 		return true;
 	};
 
+	const popSections = (point: Position, level: number) => {
+		let parentSection = sectionStack[sectionStack.length - 1];
+		while ("level" in parentSection && parentSection.level >= level) {
+			// Escape the current parent section
+			const popped = sectionStack.pop();
+			parentSection = sectionStack[sectionStack.length - 1];
+
+			if (!popped || popped.kind === "root") {
+				console.assert(
+					!popped || popped.kind === "root",
+					"unreachable"
+				);
+				continue;
+			}
+
+			const titleLocation = locationMapping.get(popped.id);
+			if (!titleLocation) {
+				console.error(
+					"Somehow created a section without adding its initial title's location"
+				);
+				continue;
+			}
+			locationMapping.set(
+				popped.id,
+				new Range(titleLocation.start, point)
+			);
+		}
+	};
+
 	// console.log("buildDocumentRec", md, sectionStack, inlineParentStack);
 
 	switch (md.type) {
@@ -71,6 +108,11 @@ function buildDocumentRec(
 			{
 				// Does nothing but iterate over children
 				iterateChildren(md as Md.Root);
+				const rootEnd = md.position!.end;
+				popSections(
+					new Position(rootEnd.line - 1, rootEnd.column - 1),
+					-1
+				);
 			}
 			break;
 
@@ -82,24 +124,27 @@ function buildDocumentRec(
 				}
 
 				const heading = md as Md.Heading;
-				const section: Doc.Section = {
+				const section: doc.Section = {
 					kind: "section",
 					level: heading.depth,
 					blocks: [],
 					children: [],
 					id: idAllocator.allocate(),
 				};
+				const mdPosition = heading.position!;
+				const vsRange = new Range(
+					new Position(
+						mdPosition.start.line - 1,
+						mdPosition.start.column - 1
+					),
+					new Position(
+						mdPosition.end.line - 1,
+						mdPosition.end.column - 1
+					)
+				);
+				locationMapping.set(section.id, vsRange);
 
-				// Everything within its depth is considered to be its child in Noteify documents
-				let parentSection = sectionStack[sectionStack.length - 1];
-				while (
-					"level" in parentSection &&
-					parentSection.level >= section.level
-				) {
-					// Escape the current parent section, at most until we reach root
-					sectionStack.pop();
-					parentSection = sectionStack[sectionStack.length - 1];
-				}
+				popSections(vsRange.start, section.id);
 
 				// Enter this section
 				pushToSection(section);
@@ -121,7 +166,7 @@ function buildDocumentRec(
 					return null;
 				}
 
-				const block: Doc.ContentBlock = { kind: "block", children: [] };
+				const block: doc.ContentBlock = { kind: "block", children: [] };
 				pushToSection(block);
 
 				// Children of the paragraph are its contents. Parse them.
@@ -140,7 +185,7 @@ function buildDocumentRec(
 					return null;
 				}
 
-				const text: Doc.Text = {
+				const text: doc.Text = {
 					kind: "text",
 					content: (md as Md.Text).value,
 				};
@@ -150,7 +195,7 @@ function buildDocumentRec(
 
 		case "link":
 			{
-				const link: Doc.Link = {
+				const link: doc.Link = {
 					kind: "link",
 					destination: (md as Md.Link).url,
 					children: [],
@@ -163,7 +208,7 @@ function buildDocumentRec(
 
 		case "strong":
 			{
-				const bold: Doc.Bold = { kind: "bold", children: [] };
+				const bold: doc.Bold = { kind: "bold", children: [] };
 				if (handleGenericInline(md as Md.Strong, bold) === null) {
 					return null;
 				}
@@ -172,7 +217,7 @@ function buildDocumentRec(
 
 		case "emphasis":
 			{
-				const bold: Doc.Italics = { kind: "italics", children: [] };
+				const bold: doc.Italics = { kind: "italics", children: [] };
 				if (handleGenericInline(md as Md.Emphasis, bold) === null) {
 					return null;
 				}
@@ -186,16 +231,29 @@ function buildDocumentRec(
 			break;
 	}
 
-	return sectionStack[0] as Doc.Root;
+	return sectionStack[0] as doc.Root;
 }
 
 export function parseDocument(
 	filename: string,
 	markdownContents: string,
 	idAllocator: IdAllocator
-): Doc.Root | null {
+): [doc.Root, Map<doc.SectionId, Range>] | undefined {
 	const md = parseMarkdown(markdownContents);
 	console.log(md); // useful for debugging and adding features
-	const root: Doc.Root = { kind: "root", filename, blocks: [] };
-	return buildDocumentRec(md, [root], [], idAllocator);
+	const locationMapping = new Map();
+	const root: doc.Root = { kind: "root", filename, blocks: [] };
+
+	const document = buildDocumentRec(
+		md,
+		[root],
+		[],
+		idAllocator,
+		locationMapping
+	);
+	if (!document) {
+		return;
+	}
+
+	return [document, locationMapping];
 }
