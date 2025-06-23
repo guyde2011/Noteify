@@ -1,11 +1,12 @@
-import { EventEmitter } from "stream";
+import { EventEmitter } from "events";
 import * as doc from "./api/document";
-import { DocumentProcessor } from "./api/frontend";
+import { DocumentProcessor, WorkspaceSessionEvents } from "./api/frontend";
 import { DocumentUpdateEvent, DocumentRemovedEvent } from "./api/events";
 import { transformDoc } from "./documentTree";
 import { flattenArray, objectFromFields, transformTree } from "./utils";
+import { BackendStatus } from "./api/interface";
+import { parseDocument } from "./api/markdown";
 
-export type DocFile = string;
 export type ElementId = number;
 
 type HasId = doc.Element;
@@ -37,17 +38,26 @@ export type WithId<T> = T extends HasId
 	? WithId<T[keyof T & number]>[]
 	: T;
 
-export type WorkspaceStateEvents = {
+export type WorkspaceFrontendEvents = {
 	elementAdded: [element: WithId<doc.Element>];
 	elementRemoved: [element: WithId<doc.Element>];
 };
 
+export type ElementData = {
+	element: WithId<doc.Element>;
+	file: doc.File;
+};
+
 export class WorkspaceState
-	extends EventEmitter<WorkspaceStateEvents>
+	extends EventEmitter<WorkspaceFrontendEvents>
 	implements DocumentProcessor
 {
-	documents: Map<DocFile, WithId<doc.Root>> = new Map();
-	elements: Map<ElementId, WithId<doc.Element>> = new Map();
+	documents: Map<doc.File, WithId<doc.Root>> = new Map();
+	elements: Map<ElementId, ElementData> = new Map();
+	sections: Map<doc.SectionId, ElementId> = new Map();
+
+	public readonly sessionEmitter: EventEmitter<WorkspaceSessionEvents> =
+		new EventEmitter();
 
 	onDocumentUpdated(event: DocumentUpdateEvent): void {
 		const file = event.doc.filename;
@@ -58,27 +68,35 @@ export class WorkspaceState
 			filename: file,
 		};
 
-		const diffs = this.compareDocuments(document, event.doc);
+		const newDocument = this.updateDocument(document, event.doc);
+		const newIds = new Map(
+			getDocElements(newDocument).map((element) => [
+				element.elementId,
+				element,
+			])
+		);
 		const oldIds = new Map(
 			getDocElements(document).map((element) => [
 				element.elementId,
 				element,
 			])
 		);
-		const newIds = diffs.map((diff) => diff.elementId);
 
-		for (const element of diffs) {
-			this.addElement(element);
-		}
-
-		const newSet = new Set(newIds);
-		const oldSet = new Set(oldIds);
-
-		for (const [id, element] of oldSet) {
-			if (!newSet.has(id) && id >= 0) {
-				this.removeElement(element.elementId);
+		for (const [id, element] of newIds) {
+			if (!oldIds.has(id)) {
+				this.addElement({
+					element: element,
+					file: event.doc.filename,
+				});
 			}
 		}
+
+		for (const id of oldIds.keys()) {
+			if (!newIds.has(id) && id>= 0) {
+				this.removeElement(id);
+			}
+		}
+		this.documents.set(file, newDocument);
 	}
 
 	onDocumentRemoved(event: DocumentRemovedEvent): void {
@@ -92,7 +110,7 @@ export class WorkspaceState
 	}
 
 	getElement(elementId: ElementId): WithId<doc.Element> | undefined {
-		return this.elements.get(elementId);
+		return this.elements.get(elementId)?.element;
 	}
 
 	private withIds(root: doc.Root): WithId<doc.Root> {
@@ -113,10 +131,10 @@ export class WorkspaceState
 		return this.lastElementId++;
 	}
 
-	private compareDocuments(
+	private updateDocument(
 		_oldRoot: WithId<doc.Root>,
 		newRoot: doc.Root
-	): WithId<doc.Element>[] {
+	): WithId<doc.Root> {
 		// const transformed = transformTree(
 		// 	Child.index(0, [oldRoot, newRoot]),
 		// 	([oldNode. newNode]) => {
@@ -144,33 +162,107 @@ export class WorkspaceState
 		// })
 		// TODO: Real implementation that doesn't say that everything changed
 		const withIds = this.withIds(newRoot);
-		return transformDoc(
-			withIds,
-			(elements) => flattenArray(elements),
-			(element, children) => {
-				const output: WithId<doc.Root>[] = flattenArray(
-					children.map(([_key, value]) => value)
-				);
-				output.push(element);
-				return output;
-			},
-			(_) => [] as WithId<doc.Element>[]
-		);
+		return withIds;
 	}
 
-	private addElement(element: WithId<doc.Element>) {
-		this.elements.set(element.elementId, element);
+	private addElement(elementData: ElementData) {
+		const element = elementData.element;
+		this.elements.set(element.elementId, elementData);
+		if (element.kind === "section") {
+			this.sections.set(element.id, element.elementId);
+		}
 		this.emit("elementAdded", element);
 	}
 
-	private removeElement(elementId: ElementId): doc.Element | undefined {
-		const element = this.elements.get(elementId);
-		if (!element) {
+	private removeElement(elementId: ElementId): ElementData | undefined {
+		const elementData = this.elements.get(elementId);
+		if (!elementData) {
 			return;
 		}
+
+		const element = elementData.element;
+
+		if (element.kind === "section") {
+			this.sections.delete(element.id);
+		}
+
 		this.elements.delete(element.elementId);
 		this.emit("elementRemoved", element);
 	}
+
+	async writeSection(
+		elementId: ElementId,
+		newContents: string
+	): Promise<FrontendStatus> {
+		const elementData = this.elements.get(elementId);
+		if (!elementData) {
+			return FrontendStatus.NoSuchElement;
+		}
+
+		const element = elementData.element;
+
+		if (element.kind !== "section") {
+			return FrontendStatus.InvalidElement;
+		}
+
+		const parsedRoot = parseDocument("", newContents, {
+			allocate: () => -1,
+		});
+		// Fallback if parsing failed
+		let parsedSection: doc.Section = {
+			kind: "section",
+			id: -1,
+			blocks: [
+				{
+					kind: "block",
+					children: [{ kind: "text", content: newContents }],
+				},
+			],
+			children: [],
+			level: 0,
+		};
+		if (parsedRoot) {
+			const section = extractMainSection(parsedRoot[0]);
+			if (section) {
+				parsedSection = section;
+			}
+		}
+
+		parsedSection.id = element.id;
+
+		this.sessionEmitter.emit(
+			"sectionEditRequest",
+			element.id,
+			elementData.file,
+			parsedSection
+		);
+		return FrontendStatus.Ok;
+	}
+}
+
+export enum FrontendStatus {
+	Ok = 0,
+	NoSuchElement = 1,
+	InvalidElement = 2,
+	FailedParsing,
+}
+
+function extractMainSection(root: doc.Root): doc.Section | undefined {
+	if (root.blocks.length !== 1) {
+		console.warn(
+			"Root should have a single section child, instead got",
+			root.blocks
+		);
+		return;
+	}
+
+	const section = root.blocks[0];
+	if (section.kind !== "section") {
+		console.warn("Expected section, found block!", section);
+		return;
+	}
+
+	return section;
 }
 
 function getDocElements(root: WithId<doc.Root>): WithId<doc.Element>[] {

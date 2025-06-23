@@ -27,7 +27,7 @@ type AllValues<E> =
 	| (E extends doc.Element[]
 			? E[keyof E]
 			: E extends doc.Element
-			? AllValues<keyof E>
+			? AllValues<E[keyof E]>
 			: never);
 
 export function transformDoc<
@@ -49,11 +49,18 @@ export function transformDoc<
 					.map((child) => child.child as M)
 			);
 		} else if (doc.isElement(elem)) {
+			const namedChildren = [] as (Child<C> & {
+				childKind: "named";
+				name: string;
+			})[];
+			children.forEach((child) => {
+				if (child.childKind === "named") {
+					namedChildren.push(child);
+				}
+			});
 			return transformElement(
-				elem,
-				children
-					.filter((child) => child.childKind === "named")
-					.map((child) => [child.name, child.child])
+				elem as E,
+				namedChildren.map((child) => [child.name, child.child])
 			);
 		} else {
 			return transformProperty(elem);

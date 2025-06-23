@@ -87,30 +87,29 @@ export interface Backend {
 	 *  - Sends an OpenEvent as its first event, with a BackendInstance attached.
 	 * Successful results are given to the listener, whereas the status code for errors is returned as a promise.
 	 */
-	open(listener: (inst: BackendInstance, ev: BackendEvent) => void): Promise<BackendStatus>;
+	open(
+		listener: (inst: BackendInstance, ev: BackendEvent) => void
+	): Promise<BackendStatus>;
 }
 
 export type BackendFeatures = {
-	/*
 	// Sets the contents of a section
 	readonly setSection?: (
 		sectionId: doc.SectionId,
+		file: doc.File,
 		section: doc.Section
 	) => Promise<BackendStatus>;
 
 	// Creates a new Documentation section, and returns its id
-	readonly createSection?: () => Promise<doc.SectionId>;
-
-	// Deletes the given documentation nsection
-	readonly deleteSection?: (
-		sectionId: doc.SectionId
+	readonly appendSection?: (
+		file: doc.File,
+		section: doc.Section
 	) => Promise<BackendStatus>;
 
-	// A jump-to request for an external editor
-	readonly revealSection?: (
-		sectionId: doc.SectionId
-	) => Promise<BackendStatus>;
-	*/
+	// // A jump-to request for an external editor
+	// readonly revealSection?: (
+	// 	locationHandle: LocationHandle
+	// ) => Promise<BackendStatus>;
 };
 
 /**

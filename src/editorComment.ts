@@ -5,6 +5,7 @@ import { SymbolDoc, SymbolManager, SymbolManagerEvents } from "./symbol";
 import { lspProvider, SymbolData, tsProvider } from "./workspaceSymbol";
 import { EventSubscriber, objectFromFields } from "./utils";
 import { transformDoc } from "./documentTree";
+import { extensionUri } from "./extension";
 
 let symbolCommentController: vscode.CommentController | null = null;
 
@@ -40,8 +41,11 @@ export abstract class ResearchComment implements vscode.Comment {
 }
 
 export class SymbolComment extends ResearchComment {
+	private synchronized: boolean = true;
+
 	constructor(
 		private readonly comment: WithId<doc.Element>,
+		private readonly manager: SymbolCommentManager,
 		mode: vscode.CommentMode,
 		author: vscode.CommentAuthorInformation,
 		parents: vscode.CommentThread[] = [],
@@ -51,11 +55,20 @@ export class SymbolComment extends ResearchComment {
 	}
 
 	get body(): vscode.MarkdownString {
-		return renderElement(this.comment);
+		if (this.synchronized) {
+			return renderElement(this.comment);
+		} else {
+			return loadingSpinner();
+		}
 	}
 
 	set body(content: string | vscode.MarkdownString) {
-		// TODO: Impelement
+		this.synchronized = false;
+		const workspaceState = this.manager.symbolManager.state;
+		const rawContent =
+			content instanceof vscode.MarkdownString ? content.value : content;
+		workspaceState.writeSection(this.comment.elementId, rawContent);
+		this.parents[0].comments = this.parents[0].comments;
 	}
 }
 
@@ -94,6 +107,26 @@ export abstract class CommentsManager<D, C extends ResearchComment> {
 		this.commentsById.set(comment.id, comment);
 		return comment.id;
 	}
+
+	removeComment(commentId: CommentId): C | undefined {
+		const comment = this.getComment(commentId);
+		if (!comment) {
+			return;
+		}
+		for (const parent of comment.parents) {
+			parent.comments = parent.comments.filter(
+				(child) =>
+					!(
+						child instanceof ResearchComment &&
+						child.id === commentId
+					)
+			);
+			if (parent.comments.length === 0) {
+				parent.dispose();
+			}
+		}
+		return comment;
+	}
 }
 
 export class SymbolCommentManager extends CommentsManager<
@@ -103,7 +136,9 @@ export class SymbolCommentManager extends CommentsManager<
 	private subscriber: EventSubscriber<SymbolManagerEvents> =
 		new EventSubscriber();
 
-	constructor(private readonly symbolManager: SymbolManager) {
+	private commentsByElement: Map<ElementId, CommentId[]> = new Map();
+
+	constructor(public readonly symbolManager: SymbolManager) {
 		super();
 
 		this.subscriber
@@ -130,6 +165,7 @@ export class SymbolCommentManager extends CommentsManager<
 
 		const comment = new SymbolComment(
 			element,
+			this,
 			vscode.CommentMode.Preview,
 			{
 				name: "Researcher",
@@ -138,6 +174,13 @@ export class SymbolCommentManager extends CommentsManager<
 		);
 
 		thread.comments = [...thread.comments, comment];
+
+		const comments = this.commentsByElement.get(docs.element);
+		if (!comments) {
+			this.commentsByElement.set(docs.element, [comment.id]);
+		} else {
+			comments.push(comment.id);
+		}
 
 		return comment;
 	}
@@ -157,7 +200,10 @@ export class SymbolCommentManager extends CommentsManager<
 	}
 
 	private onDocRemoved(doc: SymbolDoc) {
-		// TODO: implement
+		const comments = this.commentsByElement.get(doc.element) || [];
+		for (const commentId of comments) {
+			this.removeComment(commentId);
+		}
 	}
 
 	private onDocAdded(doc: SymbolDoc) {
@@ -225,20 +271,28 @@ export class SymbolCommentManager extends CommentsManager<
 	}
 }
 
-// TODO: Move me
-function renderElement(element: doc.Element): vscode.MarkdownString {
-	return new vscode.MarkdownString(_renderElement(element));
+function loadingSpinner(): vscode.MarkdownString {
+	const spinnerUri = vscode.Uri.joinPath(
+		extensionUri!,
+		"resources",
+		"spinner.svg"
+	);
+	const output = `<img src="${spinnerUri}" width="100%" height="60vh">
+		<br/>
+		<div align="center"> Please Wait ... </div>`;
+
+	const markdownString = new vscode.MarkdownString();
+	markdownString.supportHtml = true;
+	markdownString.appendMarkdown(output);
+	return markdownString;
 }
 
-type Rendered<T> = T extends doc.Element
-	? {
-			[key in keyof T & string]: Rendered<T[key]>;
-	  } & { elementId: ElementId }
-	: T extends doc.Element[]
-	? Rendered<T[keyof T & number]>[]
-	: T;
+// TODO: Move me
+function renderElement(element: doc.Element): vscode.MarkdownString {
+	return new vscode.MarkdownString(renderMarkdown(element));
+}
 
-function _renderElement(element: doc.Element): string {
+export function renderMarkdown(element: doc.Element): string {
 	const text = transformDoc(
 		element,
 		(array) => array,

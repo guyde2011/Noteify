@@ -1,8 +1,10 @@
 import getAllBackends from "./allBackends";
 import { BackendEvent } from "./events";
-import { DocumentProcessor } from "./frontend";
+import { DocumentProcessor, Frontend } from "./frontend";
 import { BackendStatus, Backend, BackendInstance } from "./interface";
+import * as doc from "./document";
 import * as vscode from "vscode";
+import EventEmitter = require("node:events");
 
 /**
  * Interface the frontend provides to the session to be notified about new documentation objects.
@@ -54,28 +56,59 @@ type SessionBackend = {
 	backend?: BackendInstance;
 };
 
+type BackendId = number;
+
 export class Session {
 	backendInstances: SessionBackend[];
 	allBackends: Backend[];
-	frontend: DocumentProcessor;
 
-	listenerSubscriptions: { dispose(): any }[];
+	listenerSubscriptions: { dispose(): any }[] = [];
+
+	fileToBackend: Map<doc.File, BackendId> = new Map();
 
 	/**
 	 * The Session class holds state over all of the currently open backends, including information about each open file.
 	 * It sits between the backend and frontend implementations.
 	 */
-	constructor(frontend: DocumentProcessor) {
+	constructor(private frontend: Frontend) {
 		this.allBackends = getAllBackends();
 
 		// backends are all closed, initially
 		this.backendInstances = this.allBackends.map(() => ({ isOpen: false }));
 
-		this.frontend = frontend;
-		this.listenerSubscriptions = [];
+		this.frontend.sessionEmitter.on(
+			"sectionEditRequest",
+			this.applySectionEdit.bind(this)
+		);
 
 		// listen to stuff
 		// this.listenToTextDocuments();
+	}
+
+	private applySectionEdit(
+		sectionId: doc.SectionId,
+		file: doc.File,
+		section: doc.Section
+	) {
+		console.log("applySectionEdit", sectionId, file, section);
+		const backendId = this.fileToBackend.get(file);
+		if (backendId === undefined) {
+			console.log("No backend!");
+			return;
+		}
+		const sessionBackend = this.backendInstances[backendId];
+		const backend = sessionBackend.backend;
+		if (!backend || !sessionBackend.isOpen) {
+			console.log("Backend is closed");
+			return;
+		}
+
+		if (!backend.features.setSection) {
+			console.log("Unsupported!");
+			return;
+		}
+
+		backend.features.setSection(sectionId, file, section);
 	}
 
 	/**
@@ -174,7 +207,7 @@ export class Session {
 	*/
 
 	onBackendEvent(
-		index: number,
+		index: BackendId,
 		instance: BackendInstance,
 		event: BackendEvent
 	): void {
@@ -186,6 +219,7 @@ export class Session {
 				break;
 			case "send":
 				{
+					this.fileToBackend.set(event.doc.filename, index);
 					this.frontend.onDocumentUpdated(event);
 				}
 				break;

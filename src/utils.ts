@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { EventEmitter } from "stream";
-import { Uri } from "vscode";
+import { Position, Uri } from "vscode";
 
 export function listDir(dir: string): Promise<string[]> {
 	return new Promise<string[]>((resolve, reject) => {
@@ -74,6 +74,77 @@ export function writeFile(file: Uri | string, content: string): Promise<void> {
 			}
 		});
 	});
+}
+
+export function binarySearch<T>(
+	array: T[],
+	afterTarget: (value: T) => boolean
+): number {
+	let low = 0;
+	let high = array.length;
+
+	while (low < high) {
+		const mid = Math.floor((low + high) / 2);
+		if (afterTarget(array[mid])) {
+			high = mid;
+		} else {
+			low = mid + 1;
+		}
+	}
+	return low;
+}
+
+// Assumes positions are based in characters rather than bytes
+export class LineMapper {
+	private readonly starts: number[] = [];
+	private readonly length: number;
+
+	constructor(text: string) {
+		const lines = text.split("\n");
+		lines
+			.map((line) => line.length + 1)
+			.reduce((total, line) => {
+				this.starts.push(total);
+				return total + line;
+			}, 0);
+		this.length = text.length;
+	}
+
+	getLineLength(lineno: number): number | undefined {
+		if (lineno < 0 || lineno >= this.starts.length) {
+			return;
+		}
+		const nextStart =
+			lineno === this.starts.length - 1
+				? this.length + 1
+				: this.starts[lineno + 1];
+		return nextStart - this.starts[lineno] - 1;
+	}
+
+	toLinePosition(position: number): Position | undefined {
+		// Bigger rather than >= because position can be after a character or before it.
+		if (position < 0 || position > this.length) {
+			return;
+		}
+
+		const line = binarySearch(
+			this.starts,
+			(lineStart) => lineStart > position
+		);
+		return new Position(line, position - line);
+	}
+
+	toCharPosition(position: Position): number | undefined {
+		if (
+			position.line < 0 ||
+			position.line >= this.starts.length ||
+			position.character < 0 ||
+			position.character > this.getLineLength(position.line)!
+		) {
+			return;
+		}
+		return this.starts[position.line] + position.character;
+	}
 }
 
 export function transformTree<T, F>(
