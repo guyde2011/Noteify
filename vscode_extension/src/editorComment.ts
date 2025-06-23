@@ -102,6 +102,7 @@ export class SymbolCommentManager extends CommentsManager<
 > {
 	private subscriber: EventSubscriber<SymbolManagerEvents> =
 		new EventSubscriber();
+
 	constructor(private readonly symbolManager: SymbolManager) {
 		super();
 
@@ -112,6 +113,10 @@ export class SymbolCommentManager extends CommentsManager<
 				"docRemoved",
 				this.onDocRemoved.bind(this)
 			);
+	}
+
+	dispose() {
+		this.subscriber.dispose();
 	}
 
 	protected createComment(
