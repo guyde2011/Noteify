@@ -46,9 +46,13 @@ export default abstract class JsonSocket {
         try {
             const str = data.toString("utf-8");  // this can't fail
             obj = JSON.parse(str);
-        } catch (SyntaxError) {
-            console.log("JSON error in a received message. Requesting socket end.");
-            this.closeSocket();
+        } catch (e) {
+            if (e instanceof SyntaxError) {
+                console.log("JSON error in a received message. Requesting socket end.");
+                this.closeSocket();
+            } else {
+                throw e;
+            }
         }
 
         if (obj !== undefined) {

@@ -20,7 +20,7 @@ function parseMarkdown(contents: string): Md.Root {
     const tree = fromMarkdown(contents, {
         extensions: [gfm()],
         mdastExtensions: [gfmFromMarkdown()]
-    })
+    });
     return tree;
 }
 
@@ -42,7 +42,7 @@ function buildDocumentRec(
                 return true;
         }
         return false;
-    }
+    };
     const handleGenericInline = (p: Md.Parent, doc: Doc.Inline & Doc.InlineParent): null | true => {
         // We assume we are inline
         if (!inlineParentStack.length)
@@ -56,7 +56,7 @@ function buildDocumentRec(
             return null;
         inlineParentStack.pop();
         return true;
-    }
+    };
 
     // console.log("buildDocumentRec", md, sectionStack, inlineParentStack);
 

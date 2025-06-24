@@ -13,7 +13,7 @@ interface RPCPluginSettings {
 
 const DEFAULT_SETTINGS: RPCPluginSettings = {
     mySetting: 'default'
-}
+};
 
 export default class RPCPlugin extends Plugin {
     settings: RPCPluginSettings | null = null;
@@ -55,7 +55,7 @@ export default class RPCPlugin extends Plugin {
 
     startIpcServer(): void {
         const sockPath = getServerSocketPath();
-        const server = net.createServer({ allowHalfOpen: false }, Client.newConnection.bind(null, this.state!))
+        const server = net.createServer({ allowHalfOpen: false }, Client.newConnection.bind(null, this.state!));
         this.ipcServer = server;
         this.ipcServerError = null;
         this.updateStatusText();
@@ -65,7 +65,7 @@ export default class RPCPlugin extends Plugin {
             this.ipcServer = null;
             this.ipcServerError = err;
             this.updateStatusText();
-        })
+        });
         // start listening
         server.listen(sockPath);
     }

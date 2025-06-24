@@ -4,7 +4,7 @@ import * as Doc from "./document";
 import Client, { RevealMessage } from "./Client";
 
 function isMarkdownFile(maybeFile: TAbstractFile): TFile | null {
-    if (!(maybeFile instanceof TFile) || maybeFile.extension != "md") {
+    if (!(maybeFile instanceof TFile) || maybeFile.extension !== "md") {
         return null;
     }
     return maybeFile;
