@@ -67,6 +67,12 @@ export class State {
         this.listeningClients.remove(c);
     }
 
+    closeAllClients() {
+        this.listeningClients.map((client) => {
+            client.closeSocket();
+        });
+    }
+
     // Client event handlers
     onRevealMessage(msg: RevealMessage) {
         const docId = msg.docId;
