@@ -14,7 +14,7 @@ export function run(): Promise<void> {
 	return new Promise((c, e) => {
 		glob('**/**.test.js', { cwd: testsRoot }, (err, files) => {
 			if (err) {
-				return e(err);
+				e(err); return;
 			}
 
 			// Add files to the test suite
@@ -31,6 +31,7 @@ export function run(): Promise<void> {
 				});
 			} catch (err) {
 				console.error(err);
+				// eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
 				e(err);
 			}
 		});

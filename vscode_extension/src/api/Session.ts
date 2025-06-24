@@ -1,10 +1,9 @@
 import getAllBackends from "./allBackends";
 import { BackendEvent } from "./events";
-import { DocumentProcessor, Frontend } from "./frontend";
+import { Frontend } from "./frontend";
 import { BackendStatus, Backend, BackendInstance } from "./interface";
 import * as doc from "./document";
 import * as vscode from "vscode";
-import EventEmitter = require("node:events");
 
 /**
  * Interface the frontend provides to the session to be notified about new documentation objects.
@@ -51,10 +50,10 @@ export enum LoadStatus {
 	NoWorkspace = "no workspace",
 }
 
-type SessionBackend = {
+interface SessionBackend {
 	isOpen: boolean;
 	backend?: BackendInstance;
-};
+}
 
 type BackendId = number;
 
@@ -62,9 +61,9 @@ export class Session {
 	backendInstances: SessionBackend[];
 	allBackends: Backend[];
 
-	listenerSubscriptions: { dispose(): any }[] = [];
+	listenerSubscriptions: { dispose(): unknown }[] = [];
 
-	fileToBackend: Map<doc.File, BackendId> = new Map();
+	fileToBackend = new Map<doc.File, BackendId>();
 
 	/**
 	 * The Session class holds state over all of the currently open backends, including information about each open file.
@@ -112,7 +111,7 @@ export class Session {
 			return;
 		}
 
-		backend.features.setSection(sectionId, file, section);
+		void backend.features.setSection(sectionId, file, section);
 	}
 
 	private applySectionReveal(sectionId: doc.SectionId, file: doc.File) {
@@ -134,7 +133,7 @@ export class Session {
 			return;
 		}
 
-		backend.features.revealSection(sectionId);
+		void backend.features.revealSection(sectionId);
 	}
 
 	/**
@@ -300,6 +299,7 @@ export class Session {
 			if (!backend.initialized) {
 				console.log(`trying to initialize backend ${backend.name}`);
 				await backend.init();
+				// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 				if (!backend.initialized) {
 					continue;
 				}
@@ -311,7 +311,7 @@ export class Session {
 			const eventHandler = (
 				instance: BackendInstance,
 				event: BackendEvent
-			) => this.onBackendEvent(index, instance, event);
+			) => { this.onBackendEvent(index, instance, event); };
 			const task = backend
 				.open(eventHandler.bind(this))
 				.then((result) => {

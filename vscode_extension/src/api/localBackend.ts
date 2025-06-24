@@ -10,13 +10,12 @@ import { TextDecoder } from "util";
 import * as doc from "./document";
 import { BackendEvent } from "./events";
 import { IdAllocator, parseDocument, SerialIdAllocator } from "./markdown";
-import { transformDoc } from "../documentTree";
 import { renderMarkdown } from "../editorComment";
-import { LineMapper, objectFromFields, readFile, writeFile } from "../utils";
+import { LineMapper, readFile, writeFile } from "../utils";
 
 export class LocalFilesBackend implements Backend {
-	initialized: boolean = false;
-	name: string = "Local Files";
+	initialized = false;
+	name = "Local Files";
 
 	async init(): Promise<void> {
 		this.initialized = true;
@@ -33,17 +32,17 @@ export class LocalFilesBackend implements Backend {
 
 type FileUri = string;
 
-type FileData = {
+interface FileData {
 	root: doc.Root;
 	ranges: Map<doc.SectionId, vscode.Range>;
 	lineMapper: LineMapper;
-};
+}
 
 export class LocalFilesInstance implements BackendInstance {
 	// implementation of local files backend
 	listenerSubscriptions: { dispose(): any }[] = [];
 
-	files: Map<FileUri, FileData> = new Map();
+	files = new Map<FileUri, FileData>();
 	idAllocator: IdAllocator = new SerialIdAllocator();
 
 	constructor(
@@ -100,7 +99,7 @@ export class LocalFilesInstance implements BackendInstance {
 
 	readonly features: BackendFeatures = {
 		setSection: async (
-			sectionId: doc.SectionId,
+			_sectionId: doc.SectionId,
 			fileName: doc.File,
 			section: doc.Section
 		) => {

@@ -1,4 +1,3 @@
-import { Uri } from "vscode";
 import * as doc from "./document";
 import { BackendEvent } from "./events";
 
@@ -92,7 +91,7 @@ export interface Backend {
 	): Promise<BackendStatus>;
 }
 
-export type BackendFeatures = {
+export interface BackendFeatures {
 	// Sets the contents of a section
 	readonly setSection?: (
 		sectionId: doc.SectionId,
@@ -110,7 +109,7 @@ export type BackendFeatures = {
 	readonly revealSection?: (
 		sectionId: doc.SectionId
 	) => Promise<BackendStatus>;
-};
+}
 
 /**
  * An instance for managing the documentation of a project.

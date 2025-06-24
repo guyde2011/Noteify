@@ -9,11 +9,11 @@ import {
 import { SymbolIdentifier } from "./symbol";
 import { fileParser, FileParser, findMinimalContainingNode, getNodeRange, queriesCaptures } from "./treeSitter";
 
-export type SymbolData = {
+export interface SymbolData {
 	name: string;
 	range: Range;
 	uri: Uri;
-};
+}
 
 export interface SymbolProvider {
 	extractSymbol(uri: Uri, range: Range): Promise<SymbolData | undefined>;
@@ -21,7 +21,7 @@ export interface SymbolProvider {
 }
 
 export class LSPSymbolProvider implements SymbolProvider {
-	constructor() {}
+	// constructor() {}
 	async extractSymbol(
 		uri: Uri,
 		range: Range
@@ -43,7 +43,7 @@ export class LSPSymbolProvider implements SymbolProvider {
 	}
 
 	async searchSymbol(query: SymbolIdentifier): Promise<SymbolData[]> {
-		let output = [];
+		const output = [];
 		const symbols = await commands.executeCommand<SymbolInformation[]>(
 			"vscode.executeWorkspaceSymbolProvider",
 			query.name
@@ -74,7 +74,7 @@ export class TSSymbolProvider implements SymbolProvider {
         if (!parsedFile) {
             return;
         }
-        let scopes = [];
+        const scopes = [];
         const selectionNode = findMinimalContainingNode(range, parsedFile.tree);
         const nodeCaptures = queriesCaptures(parsedFile.api.symbolQueries.queries, selectionNode);
 
@@ -111,9 +111,9 @@ export class TSSymbolProvider implements SymbolProvider {
     }
 
     async searchSymbol(query: SymbolQuery): Promise<SymbolData[]> {
-        let output = [];
+        const output = [];
         // TODO: Use a query for supported tree sitter languages (maybe with additional user config) instead of **
-        const fileQuery = query.file ? query.file : "**";
+        const fileQuery = query.file ?? "**";
         const files = await workspace.findFiles(fileQuery);
 
         const scopeNames = query.name.split("::");
@@ -132,7 +132,7 @@ export class TSSymbolProvider implements SymbolProvider {
             }
             for (const capture of captures.get("name")!) {
                 const symbol = await this.extractSymbol(file, getNodeRange(capture));
-                if (symbol && symbol.name.endsWith(query.name)) {
+                if (symbol?.name.endsWith(query.name)) {
                     output.push(symbol);
                 }
             }
@@ -142,10 +142,10 @@ export class TSSymbolProvider implements SymbolProvider {
 
 }
 
-export type SymbolQuery = {
+export interface SymbolQuery {
 	name: string;
 	file?: string;
-};
+}
 
 // TODO: Make those per workspace.
 export const lspProvider = new LSPSymbolProvider();

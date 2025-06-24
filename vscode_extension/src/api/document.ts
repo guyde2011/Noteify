@@ -9,56 +9,56 @@ export interface InlineParent {
     children: Inline[];
 }
 
-export type Section = {
+export interface Section {
     kind: "section";
     level: number;
     blocks: Block[];
     children: Inline[];
     id: SectionId;
-};
+}
 
-export type ContentBlock = {
+export interface ContentBlock {
     kind: "block";
     children: Inline[];
-};
+}
 
-export type Text = {
+export interface Text {
     kind: "text";
     content: string;
-};
+}
 
-export type Bold = {
+export interface Bold {
     kind: "bold";
     children: Inline[];
-};
+}
 
-export type Italics = {
+export interface Italics {
     kind: "italics";
     children: Inline[];
-};
+}
 
-export type Link = {
+export interface Link {
     kind: "link";
     destination: string;
     children: Inline[];
-};
+}
 
 export type Inline = Text | Bold | Italics | Link;
 export type Block = Section | ContentBlock;
 
-export type Root = {
+export interface Root {
     kind: "root";
     filename: File;
     blocks: Block[];
-};
+}
 
 export type Element = Root | Inline | Block;
 
-export function isElement(value: any): value is Element {
-    return value instanceof Object && value.hasOwnProperty("kind");
+export function isElement(value: unknown): value is Element {
+    return value instanceof Object && Object.prototype.hasOwnProperty.call(value, "kind");
 }
 
-export function isElementArray(value: any): value is Element[] {
+export function isElementArray(value: unknown): value is Element[] {
     return (
         Array.isArray(value) &&
         ((value.length > 0 && isElement(value[0])) || value.length === 0)

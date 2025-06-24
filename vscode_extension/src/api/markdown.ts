@@ -81,7 +81,7 @@ function buildDocumentRec(
 
 			if (!popped || popped.kind === "root") {
 				console.assert(
-					!popped || popped.kind === "root",
+					!popped,
 					"unreachable"
 				);
 				continue;
@@ -241,7 +241,7 @@ export function parseDocument(
 ): [doc.Root, Map<doc.SectionId, Range>] | undefined {
 	const md = parseMarkdown(markdownContents);
 	console.log(md); // useful for debugging and adding features
-	const locationMapping = new Map();
+	const locationMapping = new Map<doc.SectionId, Range>();
 	const root: doc.Root = { kind: "root", filename, blocks: [] };
 
 	const document = buildDocumentRec(

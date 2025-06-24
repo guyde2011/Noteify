@@ -3,8 +3,7 @@ import * as doc from "./api/document";
 import { DocumentProcessor, WorkspaceSessionEvents } from "./api/frontend";
 import { DocumentUpdateEvent, DocumentRemovedEvent } from "./api/events";
 import { transformDoc } from "./documentTree";
-import { flattenArray, objectFromFields, transformTree } from "./utils";
-import { BackendStatus } from "./api/interface";
+import { flattenArray, objectFromFields } from "./utils";
 import { parseDocument } from "./api/markdown";
 
 export type ElementId = number;
@@ -38,29 +37,30 @@ export type WithId<T> = T extends HasId
 	? WithId<T[keyof T & number]>[]
 	: T;
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type WorkspaceFrontendEvents = {
 	elementAdded: [element: WithId<doc.Element>];
 	elementRemoved: [element: WithId<doc.Element>];
-};
+}
 
-export type ElementData = {
+export interface ElementData {
 	element: WithId<doc.Element>;
 	file: doc.File;
-};
+}
 
 export class WorkspaceState
 	extends EventEmitter<WorkspaceFrontendEvents>
 	implements DocumentProcessor {
-	documents: Map<doc.File, WithId<doc.Root>> = new Map();
-	elements: Map<ElementId, ElementData> = new Map();
-	sections: Map<doc.SectionId, ElementId> = new Map();
+	documents = new Map<doc.File, WithId<doc.Root>>();
+	elements = new Map<ElementId, ElementData>();
+	sections = new Map<doc.SectionId, ElementId>();
 
-	public readonly sessionEmitter: EventEmitter<WorkspaceSessionEvents> =
-		new EventEmitter();
+	public readonly sessionEmitter =
+		new EventEmitter<WorkspaceSessionEvents>();
 
 	onDocumentUpdated(event: DocumentUpdateEvent): void {
 		const file = event.doc.filename;
-		let document = this.documents.get(file) || {
+		const document = this.documents.get(file) ?? {
 			kind: "root",
 			elementId: -1,
 			blocks: [],

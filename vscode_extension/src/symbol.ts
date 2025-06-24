@@ -15,31 +15,31 @@ export enum DocRelation {
 	Text = "text",
 }
 
-export type SymbolIdentifier = {
+export interface SymbolIdentifier {
 	name: string;
 	uri?: string;
-};
+}
 
-export type SymbolRelation = {
+export interface SymbolRelation {
 	symbol: SymbolIdentifier;
 	relation: DocRelation;
-};
+}
 
-export type SymbolDoc = {
+export interface SymbolDoc {
 	relations: SymbolRelation[];
 	element: ElementId;
-};
+}
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type SymbolManagerEvents = {
 	docAdded: [doc: SymbolDoc];
 	docRemoved: [doc: SymbolDoc];
-};
+}
 
 // TODO: Properly index symbols by name/file.
 export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
-	private docByElementId: Map<ElementId, SymbolDoc> = new Map();
-	private subscriber: EventSubscriber<WorkspaceFrontendEvents> =
-		new EventSubscriber();
+	private docByElementId = new Map<ElementId, SymbolDoc>();
+	private subscriber = new EventSubscriber<WorkspaceFrontendEvents>();
 
 	constructor(public readonly state: WorkspaceState) {
 		super();
@@ -52,7 +52,7 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 			);
 	}
 
-	dispose() {
+	dispose(): void {
 		this.subscriber.dispose();
 	}
 
@@ -85,10 +85,10 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 
 	private onElementAdded(element: WithId<doc.Element>) {
 		switch (element.kind) {
-			case "section":
+			case "section": {
 				const symbols = extractSymbolRelations(element);
 				this.addDoc(element.elementId, symbols);
-				break;
+			} break;
 		}
 	}
 
@@ -120,7 +120,7 @@ const FILE_SEP_PATTERN = /[^:]:[^:]/;
 
 function tryExtractSymbol(
 	text: string,
-	clean: boolean = true
+	clean = true
 ): SymbolIdentifier | undefined {
 	if (clean) {
 		text = text.trim();
@@ -132,11 +132,9 @@ function tryExtractSymbol(
 	}
 
 	const uri = Uri.parse(text);
-	if (uri) {
-		const uriSymbol = tryExtractUriSymbol(uri);
-		if (uriSymbol) {
-			return uriSymbol;
-		}
+	const uriSymbol = tryExtractUriSymbol(uri);
+	if (uriSymbol) {
+		return uriSymbol;
 	}
 
 	// TODO: A better check for identifying <filename>:<symbol>
@@ -166,13 +164,13 @@ function _recursiveExtractSymbolRelations(
 	const relations: SymbolRelation[] = [];
 	// Iterate over title parts
 	switch (element.kind) {
-		case "link":
+		case "link": {
 			const symbol = tryExtractSymbol(element.destination);
 			if (symbol) {
 				relations.push({ relation: DocRelation.Link, symbol: symbol });
 			}
-			break;
-		case "text":
+		} break;
+		case "text": {
 			const innerSymbol = tryExtractSymbol(element.content);
 			if (innerSymbol) {
 				relations.push({
@@ -180,8 +178,8 @@ function _recursiveExtractSymbolRelations(
 					symbol: innerSymbol,
 				});
 			}
-			break;
-		case "section":
+		} break;
+		case "section": {
 			if (!traverseSection) {
 				break;
 			}
@@ -201,21 +199,22 @@ function _recursiveExtractSymbolRelations(
 					)
 				)
 			);
-			break;
+		} break;
 		case "block":
 		case "bold":
-		case "italics":
+		case "italics": {
 			const childrenRel = element.children.map((subChild) =>
 				_recursiveExtractSymbolRelations(subChild, false)
 			);
 			for (const childRel of childrenRel) {
 				relations.push(...childRel);
 			}
-			break;
+		} break;
 	}
 	return relations;
 }
 
 function isSymbolLike(text: string): boolean {
+	// eslint-disable-next-line no-control-regex
 	return text.trim().search(new RegExp("[ \t{}\\\\'\"]")) === -1;
 }

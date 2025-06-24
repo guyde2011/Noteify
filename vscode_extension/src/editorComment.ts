@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import * as vscode from "vscode";
 import * as doc from "./api/document";
 import { ElementId, WithId } from "./documentState";
@@ -14,17 +17,15 @@ export function getSymbolController() {
 }
 
 export function initSymbolController() {
-	if (symbolCommentController === null) {
-		symbolCommentController = vscode.comments.createCommentController(
-			"noteify-comments",
-			"Research Docs"
-		);
-	}
+	symbolCommentController ??= vscode.comments.createCommentController(
+		"noteify-comments",
+		"Research Docs"
+	);
 }
 
 // TODO: Move me after supporting more comment types.
 export abstract class ResearchComment implements vscode.Comment {
-	static lastCommentId: number = 0;
+	static lastCommentId = 0;
 
 	constructor(
 		public mode: vscode.CommentMode,
@@ -41,7 +42,7 @@ export abstract class ResearchComment implements vscode.Comment {
 }
 
 export class SymbolComment extends ResearchComment {
-	private synchronized: boolean = true;
+	private synchronized = true;
 
 	constructor(
 		private readonly comment: WithId<doc.Element>,
@@ -49,7 +50,7 @@ export class SymbolComment extends ResearchComment {
 		mode: vscode.CommentMode,
 		author: vscode.CommentAuthorInformation,
 		parents: vscode.CommentThread[] = [],
-		contextValue?: string | undefined
+		contextValue?: string
 	) {
 		super(mode, author, contextValue, parents);
 	}
@@ -67,13 +68,14 @@ export class SymbolComment extends ResearchComment {
 		const workspaceState = this.manager.symbolManager.state;
 		const rawContent =
 			content instanceof vscode.MarkdownString ? content.value : content;
-		workspaceState.writeSection(this.comment.elementId, rawContent);
+		void workspaceState.writeSection(this.comment.elementId, rawContent);
+		// eslint-disable-next-line no-self-assign
 		this.parents[0].comments = this.parents[0].comments;
 	}
 
 	reveal() {
 		const workspaceState = this.manager.symbolManager.state;
-		workspaceState.revealSection(this.comment.elementId);
+		void workspaceState.revealSection(this.comment.elementId);
 	}
 }
 
@@ -138,10 +140,9 @@ export class SymbolCommentManager extends CommentsManager<
 	SymbolDoc,
 	SymbolComment
 > {
-	private subscriber: EventSubscriber<SymbolManagerEvents> =
-		new EventSubscriber();
+	private subscriber = new EventSubscriber<SymbolManagerEvents>();
 
-	private commentsByElement: Map<ElementId, CommentId[]> = new Map();
+	private commentsByElement = new Map<ElementId, CommentId[]>();
 
 	constructor(public readonly symbolManager: SymbolManager) {
 		super();
@@ -205,7 +206,7 @@ export class SymbolCommentManager extends CommentsManager<
 	}
 
 	private onDocRemoved(doc: SymbolDoc) {
-		const comments = this.commentsByElement.get(doc.element) || [];
+		const comments = this.commentsByElement.get(doc.element) ?? [];
 		for (const commentId of comments) {
 			this.removeComment(commentId);
 		}
@@ -225,7 +226,7 @@ export class SymbolCommentManager extends CommentsManager<
 		};
 
 		for (const relation of doc.relations) {
-			lspProvider
+			void lspProvider
 				.searchSymbol(relation.symbol)
 				.then((lspSymbols) =>
 					tsProvider
@@ -282,7 +283,7 @@ function loadingSpinner(): vscode.MarkdownString {
 		"resources",
 		"spinner.svg"
 	);
-	const output = `<img src="${spinnerUri}" width="100%" height="60vh">
+	const output = `<img src="${spinnerUri.toString()}" width="100%" height="60vh">
 		<br/>
 		<div align="center"> Please Wait ... </div>`;
 
@@ -304,25 +305,28 @@ export function renderMarkdown(element: doc.Element): string {
 		(_, fields) => {
 			const mapped = objectFromFields(fields);
 			switch (mapped.kind) {
-				case "section":
-					const titlePrefix = "#".repeat(mapped.level);
-					const children = mapped.children.join("");
+				case "section": {
+					const titlePrefix = "#".repeat(mapped.level as number);
+					const children = (mapped.children as string[]).join("");
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					const blocks = mapped.blocks.join("\n");
 					return `${titlePrefix} ${children}\n${blocks}`;
+				}
 				case "block":
-					return mapped.children.join("");
+					return (mapped.children as string[]).join("");
 				case "bold":
-					return `**${mapped.children.join("")}**`;
+					return `**${(mapped.children as string[]).join("")}**`;
 				case "italics":
-					return `*${mapped.children.join("")}*`;
+					return `*${(mapped.children as string[]).join("")}*`;
 				case "text":
 					return mapped.content;
-				case "link":
-					const linkText = mapped.children.join("");
+				case "link": {
+					const linkText = (mapped.children as string[]).join("");
 					const destination = mapped.destination;
 					return `[${linkText}](${destination})`;
+				}
 				case "root":
-					return mapped.blocks.join("\n");
+					return (mapped.blocks as string[]).join("\n");
 			}
 		},
 		(value) => value

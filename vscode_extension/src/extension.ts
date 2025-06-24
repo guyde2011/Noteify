@@ -10,7 +10,7 @@ import { WorkspaceState } from "./documentState";
 import { SymbolManager } from "./symbol";
 import { writeError } from "./utils";
 
-export var extensionUri: vscode.Uri | undefined;
+export let extensionUri: vscode.Uri | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "noteify" is now active!');
@@ -43,14 +43,14 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	_registerCommand("noteify.deleteThread", (thread: vscode.CommentThread) => {
+	_registerCommand("noteify.deleteThread", (_thread: vscode.CommentThread) => {
 		vscode.window.showInformationMessage("Unsupported");
 		/*
 		thread.dispose();
 		*/
 	});
 
-	_registerCommand("noteify.deleteNote", (comment: vscode.Comment) => {
+	_registerCommand("noteify.deleteNote", (_comment: vscode.Comment) => {
 		vscode.window.showInformationMessage("Unsupported");
 		/*
 		for (const parent of comment.parents) {
@@ -69,6 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		comment.mode = vscode.CommentMode.Editing;
 		for (const parent of comment.parents) {
+			// eslint-disable-next-line no-self-assign
 			parent.comments = parent.comments;
 		}
 	});
@@ -139,4 +140,4 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 }
 
-export function deactivate() {}
+export function deactivate() {/* do stuff */}

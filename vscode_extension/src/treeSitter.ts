@@ -19,9 +19,9 @@ export class QuerySet {
 		this.queries = stringQueries.map((query) => new Query(language, query));
 	}
 
-	checkCaptures(captures: { [key: string]: string }): Query[] {
+	checkCaptures(captures: Record<string, string>): Query[] {
 		return this.stringQueries.map((query) => {
-			let captureChecks = [];
+			const captureChecks = [];
 			for (const capture in captures) {
 				if (!query.includes(`@${capture}`)) {
 					continue;
@@ -107,15 +107,15 @@ export namespace Languages {
 	);
 }
 
-export type ParsedFile = {
+export interface ParsedFile {
 	readonly filePath: SourceFile;
 	readonly contents: string;
 	readonly tree: Tree;
 	readonly api: LangApi;
-};
+}
 
 export class FileParser {
-	private loadedFiles: Map<SourceFile, ParsedFile> = new Map();
+	private loadedFiles = new Map<SourceFile, ParsedFile>();
 
 	parseFile(file: SourceFile): Promise<ParsedFile> | undefined;
 	parseFile(file: SourceFile, contents: string): ParsedFile | undefined;
@@ -217,7 +217,7 @@ export function queriesCaptures(
 	node: SyntaxNode,
 	options?: Parser.QueryOptions
 ): Map<string, SyntaxNode[]> {
-	let output = new Map();
+	const output = new Map<string, SyntaxNode[]>();
 	for (const query of queries) {
 		const matches = query.matches(node, options);
 		for (const match of matches) {

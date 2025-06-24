@@ -8,7 +8,7 @@ export interface DocumentProcessor {
 	onDocumentRemoved(event: DocumentRemovedEvent): void;
 }
 
-export type WorkspaceSessionEvents = {
+export interface WorkspaceSessionEvents {
 	sectionEditRequest: [
 		sectionId: doc.SectionId,
 		file: doc.File,
@@ -18,7 +18,7 @@ export type WorkspaceSessionEvents = {
 		sectionId: doc.SectionId,
 		file: doc.File
 	]
-};
+}
 
 export type Frontend = DocumentProcessor & {
 	sessionEmitter: EventEmitter<WorkspaceSessionEvents>;

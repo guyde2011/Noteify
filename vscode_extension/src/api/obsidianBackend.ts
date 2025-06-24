@@ -1,4 +1,3 @@
-import * as vscode from "vscode";
 import * as net from "node:net";
 import { env as environ } from "node:process";
 import { join as pathJoin } from "node:path";
@@ -7,30 +6,26 @@ import {
     Backend,
     BackendFeatures,
     BackendInstance,
-    BackendResult,
     BackendStatus,
 } from "./interface";
-import * as Doc from "./document";
 import { BackendEvent } from "./events";
 import JsonSocket from "../util/JsonSocket";
-import { fstat } from "node:fs";
-import { list } from "mdast-util-to-markdown/lib/handle/list";
 
 function getServerSocketPath(): string {
     if ("XDG_RUNTIME_DIR" in environ) {
-        return pathJoin(environ["XDG_RUNTIME_DIR"]!, "obsidian-rpc.sock");
+        return pathJoin(environ.XDG_RUNTIME_DIR!, "obsidian-rpc.sock");
     }
     throw Error("No XDG_RUNTIME_DIR environment variable");
 }
 
-export type ObsidianRevealMessage = {
+export interface ObsidianRevealMessage {
     op: "reveal";
     docId: number;
-};
+}
 
 export class ObsidianBackend implements Backend {
-    initialized: boolean = false;
-    name: string = "Obsidian";
+    initialized = false;
+    name = "Obsidian";
     socketPath: string | null = null;
 
     async init(): Promise<void> {
@@ -42,7 +37,7 @@ export class ObsidianBackend implements Backend {
             if (stat.isSocket()) {
                 this.initialized = true;
             }
-        } catch (e) { }
+        } catch (_) {/* do nothing */}
     }
 
     async open(listener: (inst: BackendInstance, ev: BackendEvent) => void): Promise<BackendStatus> {
@@ -52,7 +47,7 @@ export class ObsidianBackend implements Backend {
             const socket = net.createConnection({ path: this.socketPath! }, () => {
                 // on connection: open succeeded!
                 // this should happen before any packet data arrives to the instance, so that open is the first event.
-                listener(instance!, { op: "open" });;
+                listener(instance!, { op: "open" });
                 resolve(BackendStatus.Success);
             }).on("error", (err: Error) => {
                 // failed connection
@@ -90,7 +85,7 @@ export class ObsidianInstance extends JsonSocket implements BackendInstance {
     /**
      * Set once the underlying socket has fired its 'end' event.
      */
-    connectionClosed: boolean = false;
+    connectionClosed = false;
 
     onSocketEnd(): void {
         // We are now in ConnectionClosed status

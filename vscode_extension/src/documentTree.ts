@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
 import * as doc from "./api/document";
 import { transformTree } from "./utils";
 
@@ -94,5 +95,5 @@ export function transformElementTree<M, E extends doc.Element = doc.Element>(
 			});
 		}
 	);
-	return transformed.child as M;
+	return transformed.child;
 }

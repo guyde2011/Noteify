@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as vscode from "vscode";
 import { EventEmitter } from "stream";
 import { Position, Uri } from "vscode";
 
@@ -6,6 +7,7 @@ export function listDir(dir: string): Promise<string[]> {
 	return new Promise<string[]>((resolve, reject) => {
 		fs.readdir(dir, (err: any, files: string[]) => {
 			if (err) {
+				// eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
 				reject(err);
 			} else {
 				resolve(files);
@@ -18,6 +20,7 @@ export function stat(file: string): Promise<fs.Stats> {
 	return new Promise<fs.Stats>((resolve, reject) => {
 		fs.stat(file, (err: any, files: fs.Stats) => {
 			if (err) {
+				// eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
 				reject(err);
 			} else {
 				resolve(files);
@@ -27,7 +30,7 @@ export function stat(file: string): Promise<fs.Stats> {
 }
 
 export async function walkDir(dir: string): Promise<string[]> {
-	let dirStack = [[dir]];
+	const dirStack = [[dir]];
 	const output = [];
 	while (dirStack.length > 0) {
 		if (dirStack[dirStack.length - 1].length === 0) {
@@ -54,6 +57,7 @@ export function readFile(file: Uri | string): Promise<string> {
 	return new Promise<string>((resolve, reject) => {
 		fs.readFile(path, "utf8", (err: any, data: string) => {
 			if (err) {
+				// eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
 				reject(err);
 			} else {
 				resolve(data);
@@ -66,11 +70,11 @@ export function writeFile(file: Uri | string, content: string): Promise<void> {
 	const path = file instanceof Uri ? file.fsPath : file;
 
 	return new Promise<void>((resolve, reject) => {
-		fs.writeFile(path, content, (err: any, data: void) => {
-			if (err) {
+		fs.writeFile(path, content, (err: NodeJS.ErrnoException | null) => {
+			if (err !== null) {
 				reject(err);
 			} else {
-				resolve(data);
+				resolve();
 			}
 		});
 	});
@@ -183,16 +187,18 @@ export function transformTree<T, F>(
 		outputStack[outputStack.length - 1].push(transformed);
 	}
 
-	return outputStack.pop()![0]!;
+	return outputStack.pop()![0];
 }
 
-const RELEASE: boolean = false;
+const RELEASE = false;
 
-export function writeError(...args: any[]) {
+export function writeError(...args: any[]): void {
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 	if (RELEASE) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 		console.log(...args);
 	} else {
-		const vscode = require("vscode");
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 		vscode.window.showErrorMessage(...args);
 	}
 }
@@ -209,15 +215,15 @@ type Listener<K, T, F> = T extends DefaultEventMap
 	: never;
 type Listener1<K, T> = Listener<K, T, (...args: any[]) => void>;
 
-export class EventSubscriber<T extends { [key: string | symbol]: any[] }> {
+export class EventSubscriber<T extends Record<string | symbol, any[]>> {
 	private listeners: [
 		EventEmitter<T>,
 		Key<keyof T, T>,
 		Listener1<never, T>
 	][] = [];
 
-	subscribe<Ev extends keyof T, Em extends EventEmitter<T>>(
-		emitter: Em,
+	subscribe<Ev extends keyof T>(
+		emitter: EventEmitter<T>,
 		event: Key<Ev, T>,
 		handler: Listener1<Ev, T>
 	): this {
@@ -226,7 +232,7 @@ export class EventSubscriber<T extends { [key: string | symbol]: any[] }> {
 		return this;
 	}
 
-	dispose() {
+	dispose(): void {
 		this.listeners.forEach(([emitter, event, handler]) =>
 			emitter.removeListener(event, handler)
 		);
@@ -247,6 +253,7 @@ export function objectFromFields<F extends [string, any][]>(
 ): FieldObject<F> {
 	return Object.assign(
 		{},
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		...fields.map(([key, value]) => ({ [key]: value }))
-	);
+	) as FieldObject<F>;
 }

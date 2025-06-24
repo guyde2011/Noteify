@@ -16,7 +16,7 @@ export default abstract class JsonSocket {
         this.socket.end();
     }
 
-    _onSocketData(data: Buffer) {
+    _onSocketData(data: Buffer): void {
         const addBuffers = (buf1: Uint8Array | null, buf2: Buffer): Buffer => {
             if (buf1 === null)
                 return buf2;
@@ -45,10 +45,15 @@ export default abstract class JsonSocket {
         let obj: object | undefined = undefined;
         try {
             const str = data.toString("utf-8");  // this can't fail
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             obj = JSON.parse(str);
-        } catch (SyntaxError) {
-            console.log("JSON error in a received message. Requesting socket end.");
-            this.closeSocket();
+        } catch (e) {
+            if (e instanceof SyntaxError) {
+                console.log("JSON error in a received message. Requesting socket end.");
+                this.closeSocket();
+            } else {
+                throw e;
+            }
         }
 
         if (obj !== undefined) {
