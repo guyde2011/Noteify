@@ -94,6 +94,11 @@ export class ObsidianInstance extends JsonSocket implements BackendInstance {
 
     onSocketEnd(): void {
         // We are now in ConnectionClosed status
+        if (!this.connectionClosed) {
+            this.listener(this, { op: "close", status: BackendStatus.ConnectionClosed });
+            // avoid sending any further events
+            this.listener = (_inst: BackendInstance, _ev: BackendEvent) => undefined;
+        }
         this.connectionClosed = true;
     }
 
@@ -119,6 +124,9 @@ export class ObsidianInstance extends JsonSocket implements BackendInstance {
     }
 
     dispose(): void {
-        // does nothing
+        // avoid sending any events
+        this.listener = (_inst: BackendInstance, _ev: BackendEvent) => undefined;
+        // close outgoing socket
+        this.closeSocket();
     }
 }

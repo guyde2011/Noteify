@@ -110,6 +110,7 @@ export default class RPCPlugin extends Plugin {
         this.registerEvent(vault.on("rename", this.state.vaultOnRename.bind(this.state)));
         this.registerEvent(this.app.workspace.on("quit", _ => {
             this.closeIpcServer();
+            this.state?.closeAllClients();
         }));
 
         // Initialize with all existing files
@@ -188,6 +189,7 @@ export default class RPCPlugin extends Plugin {
 
     onunload() {
         this.closeIpcServer();
+        this.state?.closeAllClients();
     }
 
     async loadSettings() {

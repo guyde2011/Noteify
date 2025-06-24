@@ -243,6 +243,24 @@ export class Session {
 					this.backendInstances[index].backend = instance;
 				}
 				break;
+			case "close":
+				{
+					console.log(`Connection closed to backend ${this.allBackends[index].name}`);
+					// show client message
+					vscode.window.showInformationMessage(`Connection closed to backend ${this.allBackends[index].name}: ${BackendStatus.toString(event.status)}`);
+
+					// send matching "remove" events for every document from this backend
+					this.fileToBackend.forEach((fileBackendIndex, filename, map) => {
+						if (fileBackendIndex === index) {
+							this.frontend.onDocumentRemoved({ op: "remove", filename });
+							map.delete(filename);
+						}
+					});
+
+					this.backendInstances[index].isOpen = false;
+					this.backendInstances[index].backend = undefined;
+				}
+				break;
 			case "send":
 				{
 					this.fileToBackend.set(event.doc.filename, index);
