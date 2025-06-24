@@ -70,6 +70,11 @@ export class SymbolComment extends ResearchComment {
 		workspaceState.writeSection(this.comment.elementId, rawContent);
 		this.parents[0].comments = this.parents[0].comments;
 	}
+
+	reveal() {
+		const workspaceState = this.manager.symbolManager.state;
+		workspaceState.revealSection(this.comment.elementId);
+	}
 }
 
 export type CommentId = number;
@@ -238,7 +243,7 @@ export class SymbolCommentManager extends CommentsManager<
 							if (
 								symbol.uri !== existingSymbol.uri ||
 								symbol.range.start.line >
-									existingSymbol.range.end.line
+								existingSymbol.range.end.line
 							) {
 								// We assume here symbols are a single line. thus endLine == startLine for symbols
 								break;

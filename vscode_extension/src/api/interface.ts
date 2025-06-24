@@ -28,13 +28,13 @@ export namespace BackendStatus {
 
 export type BackendResult<T> =
 	| {
-			status: "success";
-			value: T;
-	  }
+		status: "success";
+		value: T;
+	}
 	| {
-			status: "error";
-			error: BackendStatus;
-	  };
+		status: "error";
+		error: BackendStatus;
+	};
 
 export namespace BackendResult {
 	export function success<T>(
@@ -107,9 +107,9 @@ export type BackendFeatures = {
 	) => Promise<BackendStatus>;
 
 	// // A jump-to request for an external editor
-	// readonly revealSection?: (
-	// 	locationHandle: LocationHandle
-	// ) => Promise<BackendStatus>;
+	readonly revealSection?: (
+		sectionId: doc.SectionId
+	) => Promise<BackendStatus>;
 };
 
 /**

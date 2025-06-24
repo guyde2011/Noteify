@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import {
 	initSymbolController,
 	ResearchComment,
+	SymbolComment,
 	SymbolCommentManager,
 } from "./editorComment";
 import { LoadStatus, Session } from "./api/Session";
@@ -73,17 +74,11 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	_registerCommand("noteify.jumpTo", (comment: vscode.Comment) => {
-		if (!(comment instanceof ResearchComment)) {
+		if (!(comment instanceof SymbolComment)) {
 			vscode.window.showInformationMessage("Unexpected comment type");
 			return;
 		}
-		/*
-		comment.requestHandle.jumpTo().then(status => {
-			if (status != BackendStatus.Success) {
-				vscode.window.showErrorMessage(`Jump failed with error ${BackendStatusToString(status)}`);
-			}
-		})
-		*/
+		comment.reveal();
 	});
 
 	_registerCommand("noteify.saveNote", (comment: vscode.Comment) => {
