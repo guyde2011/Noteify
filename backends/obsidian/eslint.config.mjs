@@ -44,4 +44,7 @@ export default tseslint.config(
         files: ["eslint.config.mjs"],
         extends: [tseslint.configs.disableTypeChecked],
     },
+    {
+        ignores: ["node_modules/", "main.js"]
+    },
 );
