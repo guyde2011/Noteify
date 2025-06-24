@@ -10,12 +10,13 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensions-dir=${workspaceFolder}/staging/extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}/vscode_extension",
+				"--extensions-dir=${workspaceFolder}/vscode_extension/staging/extensions",
 				"--profile-temp"
 			],
+			"cwd": "${workspaceFolder}/vscode_extension",
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/vscode_extension/out/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
 		},
@@ -24,11 +25,11 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+				"--extensionDevelopmentPath=${workspaceFolder}/vscode_extension",
+				"--extensionTestsPath=${workspaceFolder}/vscode_extension/out/test/suite/index"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/test/**/*.js"
+				"${workspaceFolder}/vscode_extension/out/test/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
 		}
