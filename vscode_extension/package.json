@@ -88,17 +88,17 @@
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
+		"@eslint/js": "^9.29.0",
 		"@types/glob": "^7.1.3",
 		"@types/mocha": "^8.2.2",
 		"@types/node": "^20.x.x",
 		"@types/vscode": "^1.86.0",
 		"eslint": "^9.29.0",
-		"@eslint/js": "^9.29.0",
-		"typescript-eslint": "^8.35.0",
 		"glob": "^7.1.7",
 		"mocha": "^8.4.0",
 		"tree-sitter-cli": "^0.25.6",
 		"typescript": "^4.3.2",
+		"typescript-eslint": "^8.35.0",
 		"vscode-test": "^1.5.2"
 	},
 	"dependencies": {
@@ -107,6 +107,7 @@
 		"mdast-util-gfm": "^3.1.0",
 		"mdast-util-to-markdown": "^2.1.2",
 		"micromark-extension-gfm": "^3.0.0",
+		"noteify-core": "file:../core",
 		"tree-sitter": "^0.21.1",
 		"tree-sitter-cpp": "^0.23.4"
 	}

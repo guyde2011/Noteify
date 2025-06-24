@@ -8,28 +8,29 @@
         "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
         "version": "node version-bump.mjs && git add manifest.json versions.json",
         "lint": "eslint main.ts src/ --ext ts",
-		"lint:fix": "eslint --fix main.ts src/ --ext ts"
+        "lint:fix": "eslint --fix main.ts src/ --ext ts"
     },
     "keywords": [],
     "author": "",
     "license": "MIT",
     "devDependencies": {
+        "@eslint/js": "^9.29.0",
         "@types/mdast": "^4.0.4",
         "@types/node": "^16.18.126",
-		"eslint": "^9.29.0",
-		"@eslint/js": "^9.29.0",
-		"typescript-eslint": "^8.35.0",
         "builtin-modules": "3.3.0",
         "esbuild": "0.17.3",
+        "eslint": "^9.29.0",
         "obsidian": "latest",
         "tslib": "2.4.0",
-        "typescript": "^4.9.5"
+        "typescript": "^4.9.5",
+        "typescript-eslint": "^8.35.0"
     },
     "dependencies": {
         "mdast": "^2.3.2",
         "mdast-util-from-markdown": "^2.0.2",
         "mdast-util-gfm": "^3.1.0",
         "mdast-util-to-markdown": "^2.1.2",
-        "micromark-extension-gfm": "^3.0.0"
+        "micromark-extension-gfm": "^3.0.0",
+        "noteify-core": "file:../../core"
     }
 }
