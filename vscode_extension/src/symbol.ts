@@ -79,6 +79,7 @@ export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
 		if (!symbolDoc) {
 			return;
 		}
+		this.emit("docRemoved", symbolDoc);
 		return symbolDoc;
 	}
 
