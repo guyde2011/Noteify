@@ -11,13 +11,27 @@
 			"presentation": {
 				"reveal": "never"
 			},
-			"options": {
-				"cwd": "${workspaceFolder}/vscode_extension",
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
+			"path": "vscode_extension",
+			"group": "build",
+			"label": "npm: watch - vscode_extension",
+			"detail": "tsc -watch -p ./"
+		},
+		{
+			"type": "npm",
+			"script": "dev",
+			"path": "backends/obsidian",
+			"problemMatcher": [],
+			"label": "npm: dev - backends/obsidian",
+			"detail": "node esbuild.config.mjs"
+		},
+		{
+			"type": "npm",
+			"script": "build",
+			"path": "backends/obsidian",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build - backends/obsidian",
+			"detail": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
 		}
 	]
 }

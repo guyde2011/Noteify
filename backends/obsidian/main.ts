@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { App, Editor, Modal, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
+import { App, Editor, Modal, Plugin, PluginSettingTab, Setting, TFile, View } from "obsidian";
 import * as net from "node:net";
 import {getServerSocketPath} from "./src/util";
 import {State} from "./src/State";
@@ -97,11 +97,13 @@ export default class RPCPlugin extends Plugin {
                 }
                 const tab = app.workspace.getLeaf();
                 await tab.openFile(file);
-                if (!tab.view || !("editor" in tab.view)) {
+                const view: View & { editor?: unknown; } = tab.view;
+                const editor = view.editor;
+                if (!(editor instanceof Editor)) {
                     console.log("goTo: no editor");
                     return;
                 }
-                (tab.view.editor as Editor).setCursor({ line: line, ch: column });
+                editor.setCursor({ line: line, ch: column });
             },
         });
         this.registerEvent(vault.on("create", this.state.vaultOnCreateOrModify.bind(this.state)));

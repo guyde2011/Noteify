@@ -18,7 +18,7 @@
 			"outFiles": [
 				"${workspaceFolder}/vscode_extension/out/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "npm: watch - vscode_extension"
 		},
 		{
 			"name": "Extension Tests",
@@ -31,7 +31,7 @@
 			"outFiles": [
 				"${workspaceFolder}/vscode_extension/out/test/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "npm: watch - vscode_extension"
 		}
 	]
 }

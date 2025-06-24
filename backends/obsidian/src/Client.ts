@@ -37,13 +37,14 @@ export default class Client extends JsonSocket {
         this.appState.removeClient(this);
     }
 
-    onJson(o: object) {
+    onJson(o: object & { op?: unknown; }) {
         console.log("Got a JSON object from a client:", o);
-        if (!("op" in o)) {
+        const op = o.op;
+        if (!(typeof op === "string")) {
             console.log("Unexpected JSON object without an op field:", o);
             return;
         }
-        switch (o.op) {
+        switch (op) {
             case "reveal": {
                 const msg = o as RevealMessage;
                 this.appState.onRevealMessage(msg);
