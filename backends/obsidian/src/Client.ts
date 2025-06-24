@@ -3,22 +3,22 @@ import * as Doc from "./document";
 import { State } from "./State";
 import JsonSocket from "./JsonSocket";
 
-export type SendMessage = {
+export interface SendMessage {
     op: "send";
     doc: Doc.Root;
-};
+}
 
-export type RemoveMessage = {
+export interface RemoveMessage {
     op: "remove";
     filename: string;
-};
+}
 
 export type UpdateMessage = SendMessage | RemoveMessage;
 
-export type RevealMessage = {
+export interface RevealMessage {
     op: "reveal";
     docId: number;
-};
+}
 
 export type RequestMessage = RevealMessage;
 

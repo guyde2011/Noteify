@@ -8,45 +8,45 @@ export interface InlineParent {
     children: Inline[];
 }
 
-export type Section = {
+export interface Section {
     kind: "section";
     level: number;
     blocks: Block[];
     children: Inline[];
     id: SectionId;
-};
+}
 
-export type ContentBlock = {
+export interface ContentBlock {
     kind: "block";
     children: Inline[];
-};
+}
 
-export type Text = {
+export interface Text {
     kind: "text";
     content: string;
-};
+}
 
-export type Bold = {
+export interface Bold {
     kind: "bold";
     children: Inline[];
-};
+}
 
-export type Italics = {
+export interface Italics {
     kind: "italics";
     children: Inline[];
-};
+}
 
-export type Link = {
+export interface Link {
     kind: "link";
     destination: string;
     children: Inline[];
-};
+}
 
 export type Inline = Text | Bold | Italics | Link;
 export type Block = Section | ContentBlock;
 
-export type Root = {
+export interface Root {
     kind: "root";
     filename: string;
     blocks: Block[];
-};
+}

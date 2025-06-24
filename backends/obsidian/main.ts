@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 import { App, Editor, Modal, Plugin, PluginSettingTab, Setting, TFile, View } from "obsidian";
 import * as net from "node:net";
 import {getServerSocketPath} from "./src/util";
@@ -195,6 +195,7 @@ export default class RPCPlugin extends Plugin {
     }
 
     async loadSettings() {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 

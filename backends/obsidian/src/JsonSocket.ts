@@ -45,6 +45,7 @@ export default abstract class JsonSocket {
         let obj: object | undefined = undefined;
         try {
             const str = data.toString("utf-8");  // this can't fail
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             obj = JSON.parse(str);
         } catch (e) {
             if (e instanceof SyntaxError) {

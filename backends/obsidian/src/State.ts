@@ -11,12 +11,12 @@ function isMarkdownFile(maybeFile: TAbstractFile): TFile | null {
 }
 
 export interface FrontendInterface {
-    goTo(file: string, line: number, column: number): void;
+    goTo(file: string, line: number, column: number): unknown;
 }
 
 export class State {
-    documentByPath: Map<string, [Doc.Root, Doc.SectionId[]]> = new Map();
-    globalSectionIdMap: Map<Doc.SectionId, SectionIdInfo> = new Map();
+    documentByPath = new Map<string, [Doc.Root, Doc.SectionId[]]>();
+    globalSectionIdMap = new Map<Doc.SectionId, SectionIdInfo>();
     listeningClients: Client[] = [];
     /**
      * all section objects are given unique incrementing IDs.
@@ -103,7 +103,7 @@ export class State {
             return;
         }
 
-        this.vault.cachedRead(file).then(contents => {
+        void this.vault.cachedRead(file).then(contents => {
             this.indexSetByPathAndContents(file.path, contents);
         });
     }

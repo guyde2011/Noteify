@@ -4,10 +4,10 @@ import {gfm} from "micromark-extension-gfm";
 import * as Md from "mdast";
 import * as Doc from "./document";
 
-export type SectionIdInfo = {
+export interface SectionIdInfo {
     filename: string;
     mdNode: Md.Node;
-};
+}
 
 export class IdAllocator {
     nextId = 0;
@@ -148,6 +148,6 @@ export function parseDocument(filename: string, markdownContents: string, idAllo
     const md = parseMarkdown(markdownContents);
     console.log(md);  // useful for debugging and adding features
     const root: Doc.Root = { kind: "root", filename, blocks: [] };
-    const sectionIdMap: Map<Doc.SectionId, SectionIdInfo> = new Map();
+    const sectionIdMap = new Map<Doc.SectionId, SectionIdInfo>();
     return buildDocumentRec(md, [root], [], idAllocator, sectionIdMap, filename);
 }
