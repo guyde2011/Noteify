@@ -76,6 +76,19 @@ export function writeFile(file: Uri | string, content: string): Promise<void> {
 	});
 }
 
+export function stringHash(text: string): number {
+	if (text.length === 0) {
+		return 0;
+	}
+	let hash = 0;
+	for (let i = 0; i < text.length; i++) {
+		const char = text.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash |= 0; // To 32 bit integer
+	}
+	return hash;
+}
+
 export function binarySearch<T>(
 	array: T[],
 	afterTarget: (value: T) => boolean
@@ -235,7 +248,7 @@ export class EventSubscriber<T extends { [key: string | symbol]: any[] }> {
 }
 
 export function flattenArray<T>(array: T[][]): T[] {
-	return ([] as T[]).concat.apply([], array);
+	return array.reduce((total, elem) => { total.push(...elem); return total; }, []);
 }
 
 type FieldObject<T extends [string, any][]> = {

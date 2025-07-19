@@ -88,11 +88,10 @@ export function transformElementTree<M, E extends doc.Element = doc.Element>(
 				return [];
 			}
 		},
-		(elem, children) => {
-			return Object.assign({}, elem, {
-				child: transform(elem.child, children),
-			});
-		}
+		(elem, children) => ({
+			...elem,
+			child: transform(elem.child, children),
+		})
 	);
 	return transformed.child as M;
 }

@@ -1,8 +1,18 @@
 import * as vscode from "vscode";
 import * as doc from "./api/document";
 import { ElementId, WithId } from "./documentState";
-import { SymbolDoc, SymbolManager, SymbolManagerEvents } from "./symbol";
-import { lspProvider, SymbolData, tsProvider } from "./workspaceSymbol";
+import {
+	SymbolDoc,
+	SymbolDocManager,
+	SymbolIdentifier,
+	SymbolManagerEvents,
+} from "./symbol";
+import {
+	lspProvider,
+	pathEndsWith,
+	SymbolData,
+	tsProvider,
+} from "./workspaceSymbol";
 import { EventSubscriber, objectFromFields } from "./utils";
 import { transformDoc } from "./documentTree";
 import { extensionUri } from "./extension";
@@ -134,6 +144,16 @@ export abstract class CommentsManager<D, C extends ResearchComment> {
 	}
 }
 
+type ActiveSymbol = {
+	identifier: SymbolIdentifier;
+	elements: ElementId[];
+};
+
+type ActiveSymbolEntries = {
+	symbols: ActiveSymbol[];
+	symbolDoc: SymbolDoc;
+};
+
 export class SymbolCommentManager extends CommentsManager<
 	SymbolDoc,
 	SymbolComment
@@ -143,7 +163,9 @@ export class SymbolCommentManager extends CommentsManager<
 
 	private commentsByElement: Map<ElementId, CommentId[]> = new Map();
 
-	constructor(public readonly symbolManager: SymbolManager) {
+	private activeSymbols: Map<string, ActiveSymbolEntries> = new Map();
+
+	constructor(public readonly symbolManager: SymbolDocManager) {
 		super();
 
 		this.subscriber
@@ -153,6 +175,27 @@ export class SymbolCommentManager extends CommentsManager<
 				"docRemoved",
 				this.onDocRemoved.bind(this)
 			);
+		// TODO: Make disposable
+		tsProvider.events.on("symbolAdded", (symData) => {
+			console.log("symbolAdded", symData);
+			const entries = this.activeSymbols.get(symData.name);
+			if (!entries) {
+				return;
+			}
+
+			const insertions = [];
+			for (const active of entries.symbols) {
+				if (
+					!active.identifier.uri ||
+					pathEndsWith(symData.uri.fsPath, active.identifier.uri)
+				) {
+					insertions.push(active);
+				}
+			}
+			for (const insertion of insertions) {
+				this.addSymbolComments([symData], insertion.identifier, entries.symbolDoc);
+			}
+		});
 	}
 
 	dispose() {
@@ -212,18 +255,6 @@ export class SymbolCommentManager extends CommentsManager<
 	}
 
 	private onDocAdded(doc: SymbolDoc) {
-		const compareSymbols = (lhs: SymbolData, rhs: SymbolData) => {
-			const uriComp = lhs.uri.fsPath.localeCompare(rhs.uri.fsPath);
-			if (uriComp !== 0) {
-				return uriComp;
-			}
-			const lineComp = lhs.range.start.line - rhs.range.start.line;
-			if (lineComp !== 0) {
-				return lineComp;
-			}
-			return lhs.range.start.character - rhs.range.start.character;
-		};
-
 		for (const relation of doc.relations) {
 			lspProvider
 				.searchSymbol(relation.symbol)
@@ -235,7 +266,7 @@ export class SymbolCommentManager extends CommentsManager<
 				.then((allSymbols) => {
 					allSymbols.sort(compareSymbols);
 
-					const symbols = [];
+					const symbols: SymbolData[] = [];
 					for (const symbol of allSymbols) {
 						let isUnique = true;
 						for (let i = symbols.length - 1; i >= 0; i--) {
@@ -243,7 +274,7 @@ export class SymbolCommentManager extends CommentsManager<
 							if (
 								symbol.uri !== existingSymbol.uri ||
 								symbol.range.start.line >
-								existingSymbol.range.end.line
+									existingSymbol.range.end.line
 							) {
 								// We assume here symbols are a single line. thus endLine == startLine for symbols
 								break;
@@ -261,19 +292,63 @@ export class SymbolCommentManager extends CommentsManager<
 						}
 					}
 
-					for (const symbol of symbols) {
-						// Skip markdown files, otherwise you are pretty much unable to edit markdown
-						if (symbol.uri.fsPath.endsWith(".md")) {
-							continue;
-						}
-						this.insertComment(
-							doc,
-							new vscode.Location(symbol.uri, symbol.range)
-						);
-					}
+					// Skip markdown files, otherwise you are pretty much unable to edit markdown
+					const insertedSymbols = symbols.filter(
+						(symbol) => !symbol.uri.fsPath.endsWith(".md")
+					);
+					this.addSymbolComments(
+						insertedSymbols,
+						relation.symbol,
+						doc
+					);
 				});
 		}
 	}
+
+	private addSymbolComments(
+		symbols: SymbolData[],
+		identifier: SymbolIdentifier,
+		doc: SymbolDoc
+	) {
+		let entries = this.activeSymbols.get(identifier.name);
+		if (!entries) {
+			entries = { symbols: [], symbolDoc: doc };
+			this.activeSymbols.set(identifier.name, entries);
+		}
+
+		let activeSymbols: ActiveSymbol | undefined = undefined;
+		for (const entry of entries.symbols) {
+			if (entry.identifier === identifier) {
+				activeSymbols = entry;
+				break;
+			}
+		}
+		if (!activeSymbols) {
+			activeSymbols = { identifier: identifier, elements: [] };
+			entries.symbols.push(activeSymbols);
+		}
+
+		activeSymbols.elements.push(doc.element);
+
+		for (const symbol of symbols) {
+			this.insertComment(
+				doc,
+				new vscode.Location(symbol.uri, symbol.range)
+			);
+		}
+	}
+}
+
+function compareSymbols(lhs: SymbolData, rhs: SymbolData): number {
+	const uriComp = lhs.uri.fsPath.localeCompare(rhs.uri.fsPath);
+	if (uriComp !== 0) {
+		return uriComp;
+	}
+	const lineComp = lhs.range.start.line - rhs.range.start.line;
+	if (lineComp !== 0) {
+		return lineComp;
+	}
+	return lhs.range.start.character - rhs.range.start.character;
 }
 
 function loadingSpinner(): vscode.MarkdownString {

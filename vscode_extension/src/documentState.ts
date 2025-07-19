@@ -6,6 +6,7 @@ import { transformDoc } from "./documentTree";
 import { flattenArray, objectFromFields, transformTree } from "./utils";
 import { BackendStatus } from "./api/interface";
 import { parseDocument } from "./api/markdown";
+import { treeDiff } from "./documentDiff";
 
 export type ElementId = number;
 
@@ -30,13 +31,10 @@ export namespace Diff {
 		return { state: "unchanged", elementId: elementId };
 	}
 }
-export type WithId<T> = T extends HasId
-	? {
-		[key in keyof T & string]: WithId<T[key]>;
-	} & { elementId: ElementId }
-	: T extends HasId[]
-	? WithId<T[keyof T & number]>[]
-	: T;
+export type WithId<T> = doc.MappedElement<
+	doc.Element & { elementId: ElementId },
+	T
+>;
 
 export type WorkspaceFrontendEvents = {
 	elementAdded: [element: WithId<doc.Element>];
@@ -50,7 +48,8 @@ export type ElementData = {
 
 export class WorkspaceState
 	extends EventEmitter<WorkspaceFrontendEvents>
-	implements DocumentProcessor {
+	implements DocumentProcessor
+{
 	documents: Map<doc.File, WithId<doc.Root>> = new Map();
 	elements: Map<ElementId, ElementData> = new Map();
 	sections: Map<doc.SectionId, ElementId> = new Map();
@@ -81,6 +80,14 @@ export class WorkspaceState
 			])
 		);
 
+		for (const id of oldIds.keys()) {
+			if (!newIds.has(id) && id >= 0) {
+				this.removeElement(id);
+			}
+		}
+
+		this.documents.set(file, newDocument);
+
 		for (const [id, element] of newIds) {
 			if (!oldIds.has(id)) {
 				this.addElement({
@@ -89,13 +96,6 @@ export class WorkspaceState
 				});
 			}
 		}
-
-		for (const id of oldIds.keys()) {
-			if (!newIds.has(id) && id >= 0) {
-				this.removeElement(id);
-			}
-		}
-		this.documents.set(file, newDocument);
 	}
 
 	onDocumentRemoved(event: DocumentRemovedEvent): void {
@@ -131,37 +131,21 @@ export class WorkspaceState
 	}
 
 	private updateDocument(
-		_oldRoot: WithId<doc.Root>,
+		oldRoot: WithId<doc.Root>,
 		newRoot: doc.Root
 	): WithId<doc.Root> {
-		// const transformed = transformTree(
-		// 	Child.index(0, [oldRoot, newRoot]),
-		// 	([oldNode. newNode]) => {
-		// 		if (isElementArray(oldNode.child)) {
-		// 			return current.child.map((elem, index) =>
-		// 				Child.index(index, elem)
-		// 			);
-		// 		} else if (isElement(current.child)) {
-		// 			return Object.entries(current.child).filter(([key]) => key).map(([key, elem]) =>
-		// 				Child.named(key, elem)
-		// 			);
-		// 		} else {
-		// 			return [];
-		// 		}
-		// 	},
-		// 	(elem, children) => {
-		// 		return {
-		// 			...elem,
-		// 			child: transform(elem, children),
-		// 		};
-		// 	}
-		// );
-		// transformTree<Child<Element>>([oldRoot, newRoot], ([oldNode, newNode]) => {
-		//     oldNode.
-		// })
-		// TODO: Real implementation that doesn't say that everything changed
-		const withIds = this.withIds(newRoot);
-		return withIds;
+		const idGenerator = this.nextElementId.bind(this);
+		const root = treeDiff<WithId<doc.Element>>(
+			oldRoot as WithId<doc.Element>,
+			newRoot as doc.Element,
+			(node) => ({ elementId: idGenerator(), ...node })
+		);
+
+		if (root.kind !== "root") {
+			throw new Error("unreachable");
+		}
+
+		return root;
 	}
 
 	private addElement(elementData: ElementData) {
@@ -250,7 +234,11 @@ export class WorkspaceState
 			return FrontendStatus.InvalidElement;
 		}
 
-		this.sessionEmitter.emit("sectionRevealRequest", element.id, elementData.file);
+		this.sessionEmitter.emit(
+			"sectionRevealRequest",
+			element.id,
+			elementData.file
+		);
 		return FrontendStatus.Ok;
 	}
 }
@@ -280,27 +268,60 @@ function extractMainSection(root: doc.Root): doc.Section | undefined {
 	return section;
 }
 
-function getDocElements(root: WithId<doc.Root>): WithId<doc.Element>[] {
-	const out = transformDoc<
-		WithId<doc.Element>[],
-		WithId<doc.Element>[],
-		WithId<doc.Element>[],
-		WithId<doc.Element>
-	>(
-		root,
-		(elems) => flattenArray(elems),
-		(element, children) => {
-			const array = flattenArray(
-				children
-					.filter(([_, value]) => doc.isElementArray(value))
-					.map(([_, value]) => value)
-			);
+export type ElementChild<E> = { field: string; value: E; index?: number };
+
+export function nodeChildren<E extends doc.Element>(
+	node: doc.MappedElement<E>
+): ElementChild<doc.MappedElement<E>>[] {
+	switch (node.kind) {
+		case "section":
+			return [
+				...node.blocks.map((block, index) => ({
+					field: "blocks",
+					value: block,
+					index: index,
+				})),
+				...node.children.map((child, index) => ({
+					field: "children",
+					value: child,
+					index: index,
+				})),
+			];
+		case "root":
+			return node.blocks.map((block, index) => ({
+				field: "blocks",
+				value: block,
+				index: index,
+			}));
+		case "block":
+		case "bold":
+		case "italics":
+		case "link":
+			return node.children.map((child, index) => ({
+				field: "children",
+				value: child,
+				index: index,
+			}));
+		case "text":
+			return [];
+	}
+}
+
+function getDocElements<E extends doc.Element>(
+	root: doc.MappedElement<E>
+): doc.MappedElement<E>[] {
+	const childArray = transformTree(
+		{ field: "this", value: root } as ElementChild<doc.MappedElement<E>>,
+		(node) => nodeChildren(node.value),
+		(element, children: ElementChild<E>[][]) => {
+			const array = flattenArray(children);
 			array.push(element);
 			return array;
-		},
-		() => []
+		}
 	);
-	return out;
+	const output = childArray.map((child) => child.value);
+
+	return output;
 }
 
 // TODO: Move to session

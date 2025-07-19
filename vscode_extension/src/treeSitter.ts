@@ -112,10 +112,19 @@ export type ParsedFile = {
 	readonly contents: string;
 	readonly tree: Tree;
 	readonly api: LangApi;
+	readonly revision: number;
 };
 
 export class FileParser {
 	private loadedFiles: Map<SourceFile, ParsedFile> = new Map();
+
+	shouldParse(file: SourceFile): boolean {
+		return getApiForFile(file) !== undefined;
+	}
+
+	getFileRevision(file: SourceFile): number | undefined {
+		return this.loadedFiles.get(file)?.revision;
+	}
 
 	parseFile(file: SourceFile): Promise<ParsedFile> | undefined;
 	parseFile(file: SourceFile, contents: string): ParsedFile | undefined;
@@ -143,13 +152,15 @@ export class FileParser {
 		file: SourceFile,
 		contents: string,
 		langApi: LangApi
-	) {
+	): ParsedFile {
+		let revision = 1;
 		// If it is already cached with the same contents, just return it.
 		if (this.loadedFiles.has(file)) {
 			const loaded = this.loadedFiles.get(file)!;
 			if (loaded.contents === contents) {
 				return loaded;
 			}
+			revision = loaded.revision + 1;
 		}
 
 		// Get a tree
@@ -159,6 +170,7 @@ export class FileParser {
 			contents: contents,
 			tree: tree,
 			api: langApi,
+			revision: revision
 		};
 
 		// Save in cache

@@ -80,11 +80,8 @@ function buildDocumentRec(
 			parentSection = sectionStack[sectionStack.length - 1];
 
 			if (!popped || popped.kind === "root") {
-				console.assert(
-					!popped || popped.kind === "root",
-					"unreachable"
-				);
-				continue;
+				console.error("Unreachable, shouldn't be able to pop root in popSections");
+				return;
 			}
 
 			const titleLocation = locationMapping.get(popped.id);
@@ -144,7 +141,7 @@ function buildDocumentRec(
 				);
 				locationMapping.set(section.id, vsRange);
 
-				popSections(vsRange.start, section.id);
+				popSections(vsRange.start, section.level);
 
 				// Enter this section
 				pushToSection(section);

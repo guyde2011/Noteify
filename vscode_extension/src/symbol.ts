@@ -36,7 +36,7 @@ export type SymbolManagerEvents = {
 };
 
 // TODO: Properly index symbols by name/file.
-export class SymbolManager extends EventEmitter<SymbolManagerEvents> {
+export class SymbolDocManager extends EventEmitter<SymbolManagerEvents> {
 	private docByElementId: Map<ElementId, SymbolDoc> = new Map();
 	private subscriber: EventSubscriber<WorkspaceFrontendEvents> =
 		new EventSubscriber();
@@ -104,14 +104,18 @@ function tryExtractUriSymbol(uri: Uri): SymbolIdentifier | undefined {
 	) {
 		return;
 	}
-	const filePath = uri.path;
+	// TODO: What to do with URI authorities that are actual IPs, etc.
+	let filePath = uri.authority;
+	if (uri.path && uri.path !== "/") {
+		filePath += uri.path;
+	}
 	const symbol = uri.fragment;
-	if (filePath.search(".") <= 0 || symbol.trim().length === 0) {
+	if (filePath.search(".") < 0 || symbol.trim().length === 0) {
 		return;
 	}
 	// TODO: Validate this is not a link to a non symbol :(
 	return {
-		name: symbol,
+		name: symbol.trim(),
 		uri: filePath,
 	};
 }

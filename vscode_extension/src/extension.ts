@@ -7,7 +7,7 @@ import {
 } from "./editorComment";
 import { LoadStatus, Session } from "./api/Session";
 import { WorkspaceState } from "./documentState";
-import { SymbolManager } from "./symbol";
+import { SymbolDocManager } from "./symbol";
 import { writeError } from "./utils";
 
 export var extensionUri: vscode.Uri | undefined;
@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	const state = new WorkspaceState();
 	const session = new Session(state);
-	const symbolManager = new SymbolManager(state);
+	const symbolManager = new SymbolDocManager(state);
 	const commentManager = new SymbolCommentManager(symbolManager);
 
 	context.subscriptions.push(session, symbolManager, commentManager);
@@ -63,14 +63,15 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	_registerCommand("noteify.editNote", (comment: vscode.Comment) => {
-		if (!(comment instanceof ResearchComment)) {
-			vscode.window.showInformationMessage("Unexpected comment type");
-			return;
-		}
-		comment.mode = vscode.CommentMode.Editing;
-		for (const parent of comment.parents) {
-			parent.comments = parent.comments;
-		}
+		vscode.window.showInformationMessage("Unsupported");
+		// if (!(comment instanceof ResearchComment)) {
+		// 	vscode.window.showInformationMessage("Unexpected comment type");
+		// 	return;
+		// }
+		// comment.mode = vscode.CommentMode.Editing;
+		// for (const parent of comment.parents) {
+		// 	parent.comments = parent.comments;
+		// }
 	});
 
 	_registerCommand("noteify.jumpTo", (comment: vscode.Comment) => {
